@@ -1,5 +1,9 @@
 package com.sendbird.anthropic
 
+import com.anthropic.core.JsonValue
+import com.anthropic.models.messages.ContentBlockParam
+import com.anthropic.models.messages.TextBlockParam
+import com.anthropic.models.messages.ToolUseBlockParam
 import com.anthropic.models.messages.ContentBlock as RawContentBlock
 
 sealed class ContentBlock {
@@ -29,4 +33,23 @@ internal fun RawContentBlock.toKotlin(): ContentBlock = when {
         )
     }
     else -> ContentBlock.Other(this)
+}
+
+internal fun ContentBlock.toParam(): ContentBlockParam = when (this) {
+    is ContentBlock.Text -> ContentBlockParam.ofText(
+        TextBlockParam.builder().text(text).build()
+    )
+    is ContentBlock.ToolUse -> {
+        val inputObj = ToolUseBlockParam.Input.builder()
+            .additionalProperties(input.mapValues { JsonValue.from(it.value) })
+            .build()
+        ContentBlockParam.ofToolUse(
+            ToolUseBlockParam.builder()
+                .id(id)
+                .name(name)
+                .input(inputObj)
+                .build()
+        )
+    }
+    is ContentBlock.Other -> raw.toParam()
 }

@@ -8,6 +8,9 @@ repositories {
 
 kotlin {
     jvmToolchain(17)
+    compilerOptions {
+        freeCompilerArgs.add("-Xconsistent-data-class-copy-visibility")
+    }
 }
 
 dependencies {
