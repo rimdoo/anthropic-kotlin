@@ -19,3 +19,11 @@ Thumbs.db
 # Local
 *.local
 local.properties
+
+# Internal development artifacts (not part of the open-source SDK)
+.claude/
+golden-set/
+golden-runner/
+docs/plans/
+docs/evaluation/
+CLAUDE.md
