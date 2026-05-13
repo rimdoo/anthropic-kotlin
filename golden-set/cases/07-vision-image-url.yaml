@@ -1,0 +1,50 @@
+id: vision-image-url
+title: "Vision input via image URL"
+description: "이미지 URL 과 텍스트를 같이 user 메시지로 보낸다. Message.user 가 vararg ContentBlock 오버로드를 가지며 ContentBlock.Image.url(...) 팩토리가 있어야 한다."
+prompt: |
+  사용자가 이미지 URL 한 장 + 설명 텍스트를 함께 user 메시지로 보내 Claude 에 물어본다.
+  builder 나 raw map 없이 Message.user(ContentBlock.Image.url(...), ContentBlock.Text(...)) 처럼
+  ContentBlock 들을 vararg 로 나열할 수 있어야 한다.
+expected_api:
+  imports:
+    - com.sendbird.anthropic.createMessage
+    - com.sendbird.anthropic.Model
+    - com.sendbird.anthropic.Message
+    - com.sendbird.anthropic.ContentBlock
+  context: suspend
+  snippet: |
+    val response = client.createMessage(
+        model = Model.CLAUDE_OPUS_4_7,
+        maxTokens = 1024,
+        messages = listOf(
+            Message.user(
+                ContentBlock.Image.url("https://example.com/cat.jpg"),
+                ContentBlock.Text("이게 뭐야?"),
+            ),
+        ),
+    )
+criteria:
+  - id: message-user-vararg-contentblock
+    check: static
+    description: "Message.user 가 vararg ContentBlock 오버로드를 가진다"
+    grep_must_match:
+      path: sdk/src/main/kotlin
+      pattern: "fun.*user\\(\\s*vararg\\s+\\w+:\\s*ContentBlock"
+  - id: contentblock-image-subtype
+    check: static
+    description: "ContentBlock.Image 서브타입이 존재해야 한다"
+    grep_must_match:
+      path: sdk/src/main/kotlin
+      pattern: "(class|data class|object) Image.*:\\s*ContentBlock"
+  - id: contentblock-image-url-factory
+    check: static
+    description: "ContentBlock.Image.url(String) 팩토리가 존재해야 한다"
+    grep_must_match:
+      path: sdk/src/main/kotlin
+      pattern: "fun.*Image\\.Companion\\.url|Image.*Companion.*fun url|object Image.*fun url"
+  - id: contentblock-text-subtype
+    check: static
+    description: "ContentBlock.Text 서브타입이 존재해야 한다"
+    grep_must_match:
+      path: sdk/src/main/kotlin
+      pattern: "(class|data class) Text.*:\\s*ContentBlock"

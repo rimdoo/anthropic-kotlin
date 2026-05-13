@@ -1,0 +1,59 @@
+id: tool-use-roundtrip
+title: "Tool use roundtrip — send tool_result back"
+description: "사용자가 도구를 실행한 결과를 다음 turn 에 다시 보내 Claude 가 최종 답변을 생성하게 한다. Message.assistant(content = ...) 오버로드와 Message.toolResult(...) 팩토리가 핵심."
+prompt: |
+  사용자가 ToolUse 응답을 받고 본인 코드로 도구를 실행해 결과 문자열을 얻었다.
+  이제 (1) 이전 user 메시지, (2) Claude 의 ToolUse 가 포함된 assistant content, (3) ToolResult 가 든 user 메시지
+  를 함께 보내야 한다. Message.assistant(content = List<ContentBlock>) 오버로드와
+  Message.toolResult(toolUseId, content) 팩토리로 builder 없이 구성된다.
+expected_api:
+  imports:
+    - com.sendbird.anthropic.createMessage
+    - com.sendbird.anthropic.Model
+    - com.sendbird.anthropic.Message
+    - com.sendbird.anthropic.Tool
+    - com.sendbird.anthropic.ContentBlock
+    - com.sendbird.anthropic.jsonSchema
+  context: suspend
+  snippet: |
+    val weatherTool = Tool(
+        name = "get_weather",
+        description = "현재 날씨 조회",
+        inputSchema = jsonSchema { property("city", type = "string", required = true) },
+    )
+    val response = client.createMessage(
+        model = Model.CLAUDE_OPUS_4_7,
+        maxTokens = 1024,
+        tools = listOf(weatherTool),
+        messages = listOf(Message.user("서울 날씨는?")),
+    )
+    val toolUse = response.content.filterIsInstance<ContentBlock.ToolUse>().first()
+    val followup = client.createMessage(
+        model = Model.CLAUDE_OPUS_4_7,
+        maxTokens = 1024,
+        tools = listOf(weatherTool),
+        messages = listOf(
+            Message.user("서울 날씨는?"),
+            Message.assistant(content = response.content),
+            Message.toolResult(toolUseId = toolUse.id, content = "맑음, 21도"),
+        ),
+    )
+criteria:
+  - id: message-assistant-content-overload
+    check: static
+    description: "Message.assistant(content = List<ContentBlock>) 오버로드가 존재해야 한다"
+    grep_must_match:
+      path: sdk/src/main/kotlin
+      pattern: "fun.*assistant\\(\\s*content:\\s*List<ContentBlock>"
+  - id: message-toolresult-factory
+    check: static
+    description: "Message.toolResult(toolUseId, content) 팩토리가 존재해야 한다"
+    grep_must_match:
+      path: sdk/src/main/kotlin
+      pattern: "fun.*toolResult\\(\\s*toolUseId:"
+  - id: tooluse-has-id
+    check: static
+    description: "ContentBlock.ToolUse 는 id 프로퍼티를 가진다"
+    grep_must_match:
+      path: sdk/src/main/kotlin
+      pattern: "(class|data class) ToolUse.*\\bid:\\s*String"

@@ -1,0 +1,42 @@
+id: messages-multi-turn
+title: "Multi-turn conversation"
+description: "user/assistant 가 번갈아 나오는 대화 히스토리를 한 번에 전달한다. Message.user / Message.assistant 팩토리만으로 구성 가능해야 한다."
+prompt: |
+  사용자가 직전 대화 히스토리를 그대로 다음 turn 의 messages 에 넣고 싶다.
+  Java SDK 의 MessageParam.builder().role(...).content(...).build() 같은 빌더 없이,
+  Message.user("...") / Message.assistant("...") 팩토리로만 List<Message> 를 구성한다.
+expected_api:
+  imports:
+    - com.sendbird.anthropic.createMessage
+    - com.sendbird.anthropic.Model
+    - com.sendbird.anthropic.Message
+  context: suspend
+  snippet: |
+    val response = client.createMessage(
+        model = Model.CLAUDE_OPUS_4_7,
+        maxTokens = 1024,
+        messages = listOf(
+            Message.user("Kotlin은?"),
+            Message.assistant("JVM 언어입니다."),
+            Message.user("자바와 차이는?"),
+        ),
+    )
+criteria:
+  - id: message-user-factory
+    check: static
+    description: "Message.user(String) 팩토리가 존재해야 한다"
+    grep_must_match:
+      path: sdk/src/main/kotlin
+      pattern: "fun Message\\.Companion\\.user|fun Companion\\.user|object Message.*fun user"
+  - id: message-assistant-factory
+    check: static
+    description: "Message.assistant(String) 팩토리가 존재해야 한다"
+    grep_must_match:
+      path: sdk/src/main/kotlin
+      pattern: "fun Message\\.Companion\\.assistant|fun Companion\\.assistant|object Message.*fun assistant"
+  - id: no-builder-in-public
+    check: static
+    description: "public 시그니처에 Java SDK builder 가 노출되지 않는다"
+    grep_must_not_match:
+      path: sdk/src/main/kotlin
+      pattern: "^(?!.*private).*:\\s*\\w+Builder"

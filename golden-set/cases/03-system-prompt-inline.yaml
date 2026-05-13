@@ -1,0 +1,32 @@
+id: system-prompt-inline
+title: "Inline system prompt (String)"
+description: "짧은 system 지시를 String 한 줄로 전달한다. createMessage 의 system 파라미터가 String 오버로드를 가져야 한다."
+prompt: |
+  사용자가 짧은 system 지시 (한두 문장) 를 inline String 으로 전달하고 싶다.
+  별도 DSL 호출 없이 system = "..." 으로 끝나야 한다.
+expected_api:
+  imports:
+    - com.sendbird.anthropic.createMessage
+    - com.sendbird.anthropic.Model
+    - com.sendbird.anthropic.Message
+  context: suspend
+  snippet: |
+    val response = client.createMessage(
+        model = Model.CLAUDE_OPUS_4_7,
+        maxTokens = 1024,
+        system = "너는 친절한 어시스턴트야.",
+        messages = listOf(Message.user("hi")),
+    )
+criteria:
+  - id: system-string-overload
+    check: static
+    description: "createMessage 가 system: String 오버로드를 노출해야 한다"
+    grep_must_match:
+      path: sdk/src/main/kotlin
+      pattern: "system:\\s*String"
+  - id: system-is-optional
+    check: static
+    description: "system 파라미터는 default 값(또는 nullable + default null) 으로 optional 이어야 한다"
+    grep_must_match:
+      path: sdk/src/main/kotlin
+      pattern: "system:\\s*String\\??\\s*=\\s*null"
