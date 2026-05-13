@@ -12,5 +12,12 @@ data class Message internal constructor(
                 .content(text)
                 .build()
         )
+
+        fun assistant(text: String): Message = Message(
+            MessageParam.builder()
+                .role(MessageParam.Role.ASSISTANT)
+                .content(text)
+                .build()
+        )
     }
 }
