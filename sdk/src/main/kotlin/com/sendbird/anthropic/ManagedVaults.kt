@@ -93,3 +93,85 @@ fun AnthropicClient.listVaults(): Flow<Vault> = flow {
         throw e.toAnthropicException()
     }
 }.flowOn(Dispatchers.IO)
+
+// -------- Vault credentials (sub-service: vaults.credentials) --------
+// Note: createCredential is intentionally omitted — it requires a complex
+// Auth union (api-key / oauth / etc.) that's better expressed via the raw
+// Java SDK. Read / archive / delete are sufficient for most use cases.
+
+class VaultCredential internal constructor(
+    internal val raw: com.anthropic.models.beta.vaults.credentials.BetaManagedAgentsCredential,
+) {
+    val id: String get() = raw.id()
+    val vaultId: String get() = raw.vaultId()
+    val displayName: String? get() = raw.displayName().orElse(null)
+    val createdAt: OffsetDateTime get() = raw.createdAt()
+    val updatedAt: OffsetDateTime get() = raw.updatedAt()
+    val archivedAt: OffsetDateTime? get() = raw.archivedAt().orElse(null)
+}
+
+suspend fun AnthropicClient.retrieveVaultCredential(
+    vaultId: String,
+    credentialId: String,
+): VaultCredential = withContext(Dispatchers.IO) {
+    try {
+        val params = com.anthropic.models.beta.vaults.credentials.CredentialRetrieveParams.builder()
+            .vaultId(vaultId)
+            .credentialId(credentialId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        VaultCredential(beta().vaults().credentials().retrieve(params))
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}
+
+suspend fun AnthropicClient.archiveVaultCredential(
+    vaultId: String,
+    credentialId: String,
+): VaultCredential = withContext(Dispatchers.IO) {
+    try {
+        val params = com.anthropic.models.beta.vaults.credentials.CredentialArchiveParams.builder()
+            .vaultId(vaultId)
+            .credentialId(credentialId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        VaultCredential(beta().vaults().credentials().archive(params))
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}
+
+suspend fun AnthropicClient.deleteVaultCredential(
+    vaultId: String,
+    credentialId: String,
+) = withContext(Dispatchers.IO) {
+    try {
+        val params = com.anthropic.models.beta.vaults.credentials.CredentialDeleteParams.builder()
+            .vaultId(vaultId)
+            .credentialId(credentialId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        beta().vaults().credentials().delete(params)
+        Unit
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}
+
+fun AnthropicClient.listVaultCredentials(vaultId: String): Flow<VaultCredential> = flow {
+    try {
+        val params = com.anthropic.models.beta.vaults.credentials.CredentialListParams.builder()
+            .vaultId(vaultId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        var page = beta().vaults().credentials().list(params)
+        while (true) {
+            page.data().forEach { emit(VaultCredential(it)) }
+            if (!page.hasNextPage()) break
+            page = page.nextPage()
+        }
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}.flowOn(Dispatchers.IO)

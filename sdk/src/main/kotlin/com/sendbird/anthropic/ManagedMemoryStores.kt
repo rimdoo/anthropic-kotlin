@@ -11,6 +11,12 @@ import com.anthropic.models.beta.memorystores.MemoryStoreCreateParams
 import com.anthropic.models.beta.memorystores.MemoryStoreListParams
 import com.anthropic.models.beta.memorystores.MemoryStoreRetrieveParams
 import com.anthropic.models.beta.memorystores.MemoryStoreUpdateParams
+import com.anthropic.models.beta.memorystores.memories.BetaManagedAgentsMemory
+import com.anthropic.models.beta.memorystores.memories.MemoryCreateParams
+import com.anthropic.models.beta.memorystores.memories.MemoryDeleteParams
+import com.anthropic.models.beta.memorystores.memories.MemoryListParams
+import com.anthropic.models.beta.memorystores.memories.MemoryRetrieveParams
+import com.anthropic.models.beta.memorystores.memories.MemoryUpdateParams
 import java.time.OffsetDateTime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -76,6 +82,108 @@ fun AnthropicClient.listMemoryStores(): Flow<MemoryStore> = flow {
         var page = beta().memoryStores().list(params)
         while (true) {
             page.data().forEach { emit(MemoryStore(it)) }
+            if (!page.hasNextPage()) break
+            page = page.nextPage()
+        }
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}.flowOn(Dispatchers.IO)
+
+// -------- Memory entries (sub-service: memoryStores.memories) --------
+
+class Memory internal constructor(
+    internal val raw: BetaManagedAgentsMemory,
+) {
+    val id: String get() = raw.id()
+    val memoryStoreId: String get() = raw.memoryStoreId()
+    val memoryVersionId: String get() = raw.memoryVersionId()
+    val path: String get() = raw.path()
+    val content: String? get() = raw.content().orElse(null)
+    val contentSha256: String get() = raw.contentSha256()
+    val contentSizeBytes: Int get() = raw.contentSizeBytes()
+    val createdAt: java.time.OffsetDateTime get() = raw.createdAt()
+    val updatedAt: java.time.OffsetDateTime get() = raw.updatedAt()
+}
+
+suspend fun AnthropicClient.createMemory(
+    memoryStoreId: String,
+    path: String,
+    content: String,
+): Memory = withContext(Dispatchers.IO) {
+    try {
+        val body = MemoryCreateParams.Body.builder().path(path).content(content).build()
+        val params = MemoryCreateParams.builder()
+            .memoryStoreId(memoryStoreId)
+            .body(body)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        Memory(beta().memoryStores().memories().create(params))
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}
+
+suspend fun AnthropicClient.retrieveMemory(
+    memoryStoreId: String,
+    memoryId: String,
+): Memory = withContext(Dispatchers.IO) {
+    try {
+        val params = MemoryRetrieveParams.builder()
+            .memoryStoreId(memoryStoreId)
+            .memoryId(memoryId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        Memory(beta().memoryStores().memories().retrieve(params))
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}
+
+suspend fun AnthropicClient.updateMemory(
+    memoryStoreId: String,
+    memoryId: String,
+): Memory = withContext(Dispatchers.IO) {
+    try {
+        val params = MemoryUpdateParams.builder()
+            .memoryStoreId(memoryStoreId)
+            .memoryId(memoryId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        Memory(beta().memoryStores().memories().update(params))
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}
+
+suspend fun AnthropicClient.deleteMemory(
+    memoryStoreId: String,
+    memoryId: String,
+) = withContext(Dispatchers.IO) {
+    try {
+        val params = MemoryDeleteParams.builder()
+            .memoryStoreId(memoryStoreId)
+            .memoryId(memoryId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        beta().memoryStores().memories().delete(params)
+        Unit
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}
+
+fun AnthropicClient.listMemories(memoryStoreId: String): Flow<Memory> = flow {
+    try {
+        val params = MemoryListParams.builder()
+            .memoryStoreId(memoryStoreId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        var page = beta().memoryStores().memories().list(params)
+        while (true) {
+            page.data().forEach { item ->
+                if (item.isMemory()) emit(Memory(item.asMemory()))
+            }
             if (!page.hasNextPage()) break
             page = page.nextPage()
         }
