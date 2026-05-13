@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 private fun MessageCreateParams.Builder.applyCommonOptions(
     temperature: Double?,
     tools: List<Tool>?,
+    toolChoice: ToolChoice?,
     thinking: ThinkingConfig?,
     topK: Int?,
     topP: Double?,
@@ -21,6 +22,7 @@ private fun MessageCreateParams.Builder.applyCommonOptions(
 ): MessageCreateParams.Builder = apply {
     if (temperature != null) temperature(temperature)
     if (tools != null) tools(tools.map { ToolUnion.ofTool(it.raw) })
+    if (toolChoice != null) toolChoice(toolChoice.toRaw())
     if (thinking != null) thinking(thinking.toRaw())
     if (topK != null) topK(topK.toLong())
     if (topP != null) topP(topP)
@@ -34,6 +36,7 @@ suspend fun AnthropicClient.createMessage(
     system: String? = null,
     temperature: Double? = null,
     tools: List<Tool>? = null,
+    toolChoice: ToolChoice? = null,
     thinking: ThinkingConfig? = null,
     topK: Int? = null,
     topP: Double? = null,
@@ -43,7 +46,7 @@ suspend fun AnthropicClient.createMessage(
         .model(model)
         .maxTokens(maxTokens.toLong())
         .messages(messages.map { it.raw })
-        .applyCommonOptions(temperature, tools, thinking, topK, topP, stopSequences)
+        .applyCommonOptions(temperature, tools, toolChoice, thinking, topK, topP, stopSequences)
     if (system != null) builder.system(system)
     try {
         MessageResponse(messages().create(builder.build()))
@@ -59,6 +62,7 @@ suspend fun AnthropicClient.createMessage(
     system: SystemPrompt,
     temperature: Double? = null,
     tools: List<Tool>? = null,
+    toolChoice: ToolChoice? = null,
     thinking: ThinkingConfig? = null,
     topK: Int? = null,
     topP: Double? = null,
@@ -69,7 +73,7 @@ suspend fun AnthropicClient.createMessage(
         .maxTokens(maxTokens.toLong())
         .messages(messages.map { it.raw })
         .system(MessageCreateParams.System.ofTextBlockParams(system.blocks))
-        .applyCommonOptions(temperature, tools, thinking, topK, topP, stopSequences)
+        .applyCommonOptions(temperature, tools, toolChoice, thinking, topK, topP, stopSequences)
     try {
         MessageResponse(messages().create(builder.build()))
     } catch (e: RawAnthropicException) {

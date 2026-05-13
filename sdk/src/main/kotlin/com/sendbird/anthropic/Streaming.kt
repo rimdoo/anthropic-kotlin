@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.flowOn
 private fun MessageCreateParams.Builder.applyStreamOptions(
     temperature: Double?,
     tools: List<Tool>?,
+    toolChoice: ToolChoice?,
     thinking: ThinkingConfig?,
     topK: Int?,
     topP: Double?,
@@ -23,6 +24,7 @@ private fun MessageCreateParams.Builder.applyStreamOptions(
 ): MessageCreateParams.Builder = apply {
     if (temperature != null) temperature(temperature)
     if (tools != null) tools(tools.map { ToolUnion.ofTool(it.raw) })
+    if (toolChoice != null) toolChoice(toolChoice.toRaw())
     if (thinking != null) thinking(thinking.toRaw())
     if (topK != null) topK(topK.toLong())
     if (topP != null) topP(topP)
@@ -36,6 +38,7 @@ fun AnthropicClient.streamMessage(
     system: String? = null,
     temperature: Double? = null,
     tools: List<Tool>? = null,
+    toolChoice: ToolChoice? = null,
     thinking: ThinkingConfig? = null,
     topK: Int? = null,
     topP: Double? = null,
@@ -45,7 +48,7 @@ fun AnthropicClient.streamMessage(
         .model(model)
         .maxTokens(maxTokens.toLong())
         .messages(messages.map { it.raw })
-        .applyStreamOptions(temperature, tools, thinking, topK, topP, stopSequences)
+        .applyStreamOptions(temperature, tools, toolChoice, thinking, topK, topP, stopSequences)
     if (system != null) builder.system(system)
     try {
         messages().createStreaming(builder.build()).use { stream ->
@@ -66,6 +69,7 @@ fun AnthropicClient.streamMessage(
     system: SystemPrompt,
     temperature: Double? = null,
     tools: List<Tool>? = null,
+    toolChoice: ToolChoice? = null,
     thinking: ThinkingConfig? = null,
     topK: Int? = null,
     topP: Double? = null,
@@ -76,7 +80,7 @@ fun AnthropicClient.streamMessage(
         .maxTokens(maxTokens.toLong())
         .messages(messages.map { it.raw })
         .system(MessageCreateParams.System.ofTextBlockParams(system.blocks))
-        .applyStreamOptions(temperature, tools, thinking, topK, topP, stopSequences)
+        .applyStreamOptions(temperature, tools, toolChoice, thinking, topK, topP, stopSequences)
     try {
         messages().createStreaming(builder.build()).use { stream ->
             val iter = stream.stream().iterator()
