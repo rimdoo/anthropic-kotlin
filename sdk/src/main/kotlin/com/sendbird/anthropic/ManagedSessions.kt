@@ -283,6 +283,30 @@ sealed class UserEvent {
     data object Interrupt : UserEvent()
     /** Reply to a custom tool call with a result. */
     data class CustomToolResult(val customToolUseId: String, val text: String) : UserEvent()
+    /** Approve or deny an agent's tool call by id. */
+    data class ToolConfirmation(val toolUseId: String, val approve: Boolean) : UserEvent()
+    /** Declare the success rubric the agent should aim for in this session. */
+    data class DefineOutcome(val description: String, val rubric: OutcomeRubric) : UserEvent()
+}
+
+sealed class OutcomeRubric {
+    /** Inline text rubric. */
+    data class Text(val content: String) : OutcomeRubric()
+    /** Reference a previously-uploaded file (beta files-api file id) as the rubric. */
+    data class File(val fileId: String) : OutcomeRubric()
+}
+
+internal fun OutcomeRubric.toRaw(): com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserDefineOutcomeEventParams.Rubric = when (this) {
+    is OutcomeRubric.Text -> com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserDefineOutcomeEventParams.Rubric.ofText(
+        com.anthropic.models.beta.sessions.events.BetaManagedAgentsTextRubricParams.builder()
+            .content(content)
+            .build()
+    )
+    is OutcomeRubric.File -> com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserDefineOutcomeEventParams.Rubric.ofFile(
+        com.anthropic.models.beta.sessions.events.BetaManagedAgentsFileRubricParams.builder()
+            .fileId(fileId)
+            .build()
+    )
 }
 
 suspend fun AnthropicClient.sendSessionEvents(
@@ -315,6 +339,21 @@ suspend fun AnthropicClient.sendSessionEvents(
                                     .text(ev.text).build()
                             )
                         )
+                        .build()
+                )
+                is UserEvent.ToolConfirmation -> builder.addEvent(
+                    com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserToolConfirmationEventParams.builder()
+                        .toolUseId(ev.toolUseId)
+                        .result(
+                            if (ev.approve) com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserToolConfirmationEventParams.Result.ALLOW
+                            else com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserToolConfirmationEventParams.Result.DENY
+                        )
+                        .build()
+                )
+                is UserEvent.DefineOutcome -> builder.addEvent(
+                    com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserDefineOutcomeEventParams.builder()
+                        .description(ev.description)
+                        .rubric(ev.rubric.toRaw())
                         .build()
                 )
             }
