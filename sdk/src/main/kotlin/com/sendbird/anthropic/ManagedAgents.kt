@@ -107,3 +107,22 @@ fun AnthropicClient.listAgents(): Flow<Agent> = flow {
         throw e.toAnthropicException()
     }
 }.flowOn(Dispatchers.IO)
+
+// -------- Agent versions (sub-service: agents.versions) --------
+
+fun AnthropicClient.listAgentVersions(agentId: String): Flow<Agent> = flow {
+    try {
+        val params = com.anthropic.models.beta.agents.versions.VersionListParams.builder()
+            .agentId(agentId)
+            .addBeta(MANAGED_AGENTS_BETA)
+            .build()
+        var page = beta().agents().versions().list(params)
+        while (true) {
+            page.data().forEach { emit(Agent(it)) }
+            if (!page.hasNextPage()) break
+            page = page.nextPage()
+        }
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}.flowOn(Dispatchers.IO)

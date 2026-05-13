@@ -191,3 +191,65 @@ fun AnthropicClient.listMemories(memoryStoreId: String): Flow<Memory> = flow {
         throw e.toAnthropicException()
     }
 }.flowOn(Dispatchers.IO)
+
+// -------- MemoryStore.memoryVersions (sub-service) --------
+
+class MemoryVersion internal constructor(
+    internal val raw: com.anthropic.models.beta.memorystores.memoryversions.BetaManagedAgentsMemoryVersion,
+) {
+    val id: String get() = raw.id()
+    val memoryId: String get() = raw.memoryId()
+    val memoryStoreId: String get() = raw.memoryStoreId()
+    val createdAt: java.time.OffsetDateTime get() = raw.createdAt()
+    val content: String? get() = raw.content().orElse(null)
+    val contentSha256: String? get() = raw.contentSha256().orElse(null)
+}
+
+suspend fun AnthropicClient.retrieveMemoryVersion(
+    memoryStoreId: String,
+    memoryVersionId: String,
+): MemoryVersion = withContext(Dispatchers.IO) {
+    try {
+        val params = com.anthropic.models.beta.memorystores.memoryversions.MemoryVersionRetrieveParams.builder()
+            .memoryStoreId(memoryStoreId)
+            .memoryVersionId(memoryVersionId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        MemoryVersion(beta().memoryStores().memoryVersions().retrieve(params))
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}
+
+suspend fun AnthropicClient.redactMemoryVersion(
+    memoryStoreId: String,
+    memoryVersionId: String,
+): MemoryVersion = withContext(Dispatchers.IO) {
+    try {
+        val params = com.anthropic.models.beta.memorystores.memoryversions.MemoryVersionRedactParams.builder()
+            .memoryStoreId(memoryStoreId)
+            .memoryVersionId(memoryVersionId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        MemoryVersion(beta().memoryStores().memoryVersions().redact(params))
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}
+
+fun AnthropicClient.listMemoryVersions(memoryStoreId: String): Flow<MemoryVersion> = flow {
+    try {
+        val params = com.anthropic.models.beta.memorystores.memoryversions.MemoryVersionListParams.builder()
+            .memoryStoreId(memoryStoreId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        var page = beta().memoryStores().memoryVersions().list(params)
+        while (true) {
+            page.data().forEach { emit(MemoryVersion(it)) }
+            if (!page.hasNextPage()) break
+            page = page.nextPage()
+        }
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}.flowOn(Dispatchers.IO)

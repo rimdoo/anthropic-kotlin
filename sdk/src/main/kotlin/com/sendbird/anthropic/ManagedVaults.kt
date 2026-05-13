@@ -175,3 +175,68 @@ fun AnthropicClient.listVaultCredentials(vaultId: String): Flow<VaultCredential>
         throw e.toAnthropicException()
     }
 }.flowOn(Dispatchers.IO)
+
+// -------- VaultCredential.create (sealed CredentialAuth) + mcpOAuthValidate --------
+
+sealed class CredentialAuth {
+    /** OAuth access token for an MCP server. */
+    data class McpOAuth(val accessToken: String, val mcpServerUrl: String) : CredentialAuth()
+    /** Static bearer token (e.g. long-lived API key) for an MCP server. */
+    data class StaticBearer(val token: String, val mcpServerUrl: String) : CredentialAuth()
+}
+
+internal fun CredentialAuth.toRaw(): com.anthropic.models.beta.vaults.credentials.CredentialCreateParams.Auth = when (this) {
+    is CredentialAuth.McpOAuth -> com.anthropic.models.beta.vaults.credentials.CredentialCreateParams.Auth.ofMcpOAuth(
+        com.anthropic.models.beta.vaults.credentials.BetaManagedAgentsMcpOAuthCreateParams.builder()
+            .accessToken(accessToken)
+            .mcpServerUrl(mcpServerUrl)
+            .build()
+    )
+    is CredentialAuth.StaticBearer -> com.anthropic.models.beta.vaults.credentials.CredentialCreateParams.Auth.ofStaticBearer(
+        com.anthropic.models.beta.vaults.credentials.BetaManagedAgentsStaticBearerCreateParams.builder()
+            .token(token)
+            .mcpServerUrl(mcpServerUrl)
+            .build()
+    )
+}
+
+suspend fun AnthropicClient.createVaultCredential(
+    vaultId: String,
+    auth: CredentialAuth,
+    displayName: String? = null,
+): VaultCredential = withContext(Dispatchers.IO) {
+    try {
+        val builder = com.anthropic.models.beta.vaults.credentials.CredentialCreateParams.builder()
+            .vaultId(vaultId)
+            .auth(auth.toRaw())
+            .addBeta(MANAGED_AGENTS)
+        if (displayName != null) builder.displayName(displayName)
+        VaultCredential(beta().vaults().credentials().create(builder.build()))
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}
+
+class CredentialValidation internal constructor(
+    internal val raw: com.anthropic.models.beta.vaults.credentials.BetaManagedAgentsCredentialValidation,
+) {
+    val credentialId: String get() = raw.credentialId()
+    val hasRefreshToken: Boolean get() = raw.hasRefreshToken()
+    val status: com.anthropic.models.beta.vaults.credentials.BetaManagedAgentsCredentialValidationStatus get() = raw.status()
+}
+
+suspend fun AnthropicClient.validateVaultCredentialMcpOAuth(
+    vaultId: String,
+    credentialId: String,
+): CredentialValidation = withContext(Dispatchers.IO) {
+    try {
+        val params = com.anthropic.models.beta.vaults.credentials.CredentialMcpOAuthValidateParams.builder()
+            .vaultId(vaultId)
+            .credentialId(credentialId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        CredentialValidation(beta().vaults().credentials().mcpOAuthValidate(params))
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}

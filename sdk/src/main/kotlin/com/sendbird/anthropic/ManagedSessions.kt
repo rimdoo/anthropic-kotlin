@@ -204,3 +204,191 @@ suspend fun AnthropicClient.deleteSessionResource(
         throw e.toAnthropicException()
     }
 }
+
+// -------- Session.events.streamStreaming + Session.threads.events --------
+
+class SessionStreamEvent internal constructor(
+    internal val raw: com.anthropic.models.beta.sessions.events.BetaManagedAgentsStreamSessionEvents,
+)
+
+class SessionThreadStreamEvent internal constructor(
+    internal val raw: com.anthropic.models.beta.sessions.threads.BetaManagedAgentsStreamSessionThreadEvents,
+)
+
+fun AnthropicClient.streamSessionEvents(sessionId: String): Flow<SessionStreamEvent> = flow {
+    try {
+        val params = com.anthropic.models.beta.sessions.events.EventStreamParams.builder()
+            .sessionId(sessionId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        beta().sessions().events().streamStreaming(params).use { stream ->
+            val iter = stream.stream().iterator()
+            while (iter.hasNext()) {
+                emit(SessionStreamEvent(iter.next()))
+            }
+        }
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}.flowOn(Dispatchers.IO)
+
+fun AnthropicClient.listSessionThreadEvents(
+    sessionId: String,
+    threadId: String,
+): Flow<SessionEvent> = flow {
+    try {
+        val params = com.anthropic.models.beta.sessions.threads.events.EventListParams.builder()
+            .sessionId(sessionId)
+            .threadId(threadId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        var page = beta().sessions().threads().events().list(params)
+        while (true) {
+            page.data().forEach { emit(SessionEvent(it)) }
+            if (!page.hasNextPage()) break
+            page = page.nextPage()
+        }
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}.flowOn(Dispatchers.IO)
+
+fun AnthropicClient.streamSessionThreadEvents(
+    sessionId: String,
+    threadId: String,
+): Flow<SessionThreadStreamEvent> = flow {
+    try {
+        val params = com.anthropic.models.beta.sessions.threads.events.EventStreamParams.builder()
+            .sessionId(sessionId)
+            .threadId(threadId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        beta().sessions().threads().events().streamStreaming(params).use { stream ->
+            val iter = stream.stream().iterator()
+            while (iter.hasNext()) {
+                emit(SessionThreadStreamEvent(iter.next()))
+            }
+        }
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}.flowOn(Dispatchers.IO)
+
+// -------- Session.events.send (sealed UserEvent + sendSessionEvents) --------
+
+sealed class UserEvent {
+    /** Send a free-form text message from the user. */
+    data class Message(val text: String) : UserEvent()
+    /** Interrupt the agent's current action. */
+    data object Interrupt : UserEvent()
+    /** Reply to a custom tool call with a result. */
+    data class CustomToolResult(val customToolUseId: String, val text: String) : UserEvent()
+}
+
+suspend fun AnthropicClient.sendSessionEvents(
+    sessionId: String,
+    events: List<UserEvent>,
+) = withContext(Dispatchers.IO) {
+    try {
+        val builder = com.anthropic.models.beta.sessions.events.EventSendParams.builder()
+            .sessionId(sessionId)
+            .addBeta(MANAGED_AGENTS)
+        events.forEach { ev ->
+            when (ev) {
+                is UserEvent.Message -> builder.addEvent(
+                    com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserMessageEventParams.builder()
+                        .addContent(
+                            com.anthropic.models.beta.sessions.events.BetaManagedAgentsTextBlock.builder()
+                                .text(ev.text).build()
+                        )
+                        .build()
+                )
+                is UserEvent.Interrupt -> builder.addEvent(
+                    com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserInterruptEventParams.builder().build()
+                )
+                is UserEvent.CustomToolResult -> builder.addEvent(
+                    com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserCustomToolResultEventParams.builder()
+                        .customToolUseId(ev.customToolUseId)
+                        .addContent(
+                            com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserCustomToolResultEventParams.Content.ofText(
+                                com.anthropic.models.beta.sessions.events.BetaManagedAgentsTextBlock.builder()
+                                    .text(ev.text).build()
+                            )
+                        )
+                        .build()
+                )
+            }
+        }
+        beta().sessions().events().send(builder.build())
+        Unit
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}
+
+// -------- Session.resources sub-service (retrieve / add / update) --------
+
+class SessionResourceDetail internal constructor(
+    internal val raw: com.anthropic.models.beta.sessions.resources.ResourceRetrieveResponse,
+) {
+    val isFile: Boolean get() = raw.isFile()
+    val isGitHubRepository: Boolean get() = raw.isGitHubRepository()
+    val isMemoryStore: Boolean get() = raw.isMemoryStore()
+}
+
+suspend fun AnthropicClient.retrieveSessionResource(
+    sessionId: String,
+    resourceId: String,
+): SessionResourceDetail = withContext(Dispatchers.IO) {
+    try {
+        val params = com.anthropic.models.beta.sessions.resources.ResourceRetrieveParams.builder()
+            .sessionId(sessionId)
+            .resourceId(resourceId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        SessionResourceDetail(beta().sessions().resources().retrieve(params))
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}
+
+/** Attach a previously-uploaded file (by beta files-api file ID) to the session. */
+suspend fun AnthropicClient.addSessionFileResource(
+    sessionId: String,
+    fileId: String,
+) = withContext(Dispatchers.IO) {
+    try {
+        val params = com.anthropic.models.beta.sessions.resources.ResourceAddParams.builder()
+            .sessionId(sessionId)
+            .fileBetaManagedAgentsFileResourceParams(fileId)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        beta().sessions().resources().add(params)
+        Unit
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}
+
+/** Refresh a resource's authorization token (e.g. rotated OAuth). */
+suspend fun AnthropicClient.updateSessionResource(
+    sessionId: String,
+    resourceId: String,
+    authorizationToken: String,
+) = withContext(Dispatchers.IO) {
+    try {
+        val body = com.anthropic.models.beta.sessions.resources.ResourceUpdateParams.Body.builder()
+            .authorizationToken(authorizationToken)
+            .build()
+        val params = com.anthropic.models.beta.sessions.resources.ResourceUpdateParams.builder()
+            .sessionId(sessionId)
+            .resourceId(resourceId)
+            .body(body)
+            .addBeta(MANAGED_AGENTS)
+            .build()
+        beta().sessions().resources().update(params)
+        Unit
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
+}
