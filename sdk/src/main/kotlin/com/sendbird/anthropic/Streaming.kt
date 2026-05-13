@@ -1,5 +1,6 @@
 @file:JvmName("AnthropicKt")
 @file:JvmMultifileClass
+@file:Suppress("DEPRECATION")
 
 package com.sendbird.anthropic
 
@@ -12,6 +13,22 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 
+private fun MessageCreateParams.Builder.applyStreamOptions(
+    temperature: Double?,
+    tools: List<Tool>?,
+    thinking: ThinkingConfig?,
+    topK: Int?,
+    topP: Double?,
+    stopSequences: List<String>?,
+): MessageCreateParams.Builder = apply {
+    if (temperature != null) temperature(temperature)
+    if (tools != null) tools(tools.map { ToolUnion.ofTool(it.raw) })
+    if (thinking != null) thinking(thinking.toRaw())
+    if (topK != null) topK(topK.toLong())
+    if (topP != null) topP(topP)
+    if (stopSequences != null) stopSequences(stopSequences)
+}
+
 fun AnthropicClient.streamMessage(
     model: Model,
     maxTokens: Int,
@@ -19,14 +36,17 @@ fun AnthropicClient.streamMessage(
     system: String? = null,
     temperature: Double? = null,
     tools: List<Tool>? = null,
+    thinking: ThinkingConfig? = null,
+    topK: Int? = null,
+    topP: Double? = null,
+    stopSequences: List<String>? = null,
 ): Flow<MessageStreamEvent> = flow {
     val builder = MessageCreateParams.builder()
         .model(model)
         .maxTokens(maxTokens.toLong())
         .messages(messages.map { it.raw })
+        .applyStreamOptions(temperature, tools, thinking, topK, topP, stopSequences)
     if (system != null) builder.system(system)
-    if (temperature != null) builder.temperature(temperature)
-    if (tools != null) builder.tools(tools.map { ToolUnion.ofTool(it.raw) })
     try {
         messages().createStreaming(builder.build()).use { stream ->
             val iter = stream.stream().iterator()
@@ -46,14 +66,17 @@ fun AnthropicClient.streamMessage(
     system: SystemPrompt,
     temperature: Double? = null,
     tools: List<Tool>? = null,
+    thinking: ThinkingConfig? = null,
+    topK: Int? = null,
+    topP: Double? = null,
+    stopSequences: List<String>? = null,
 ): Flow<MessageStreamEvent> = flow {
     val builder = MessageCreateParams.builder()
         .model(model)
         .maxTokens(maxTokens.toLong())
         .messages(messages.map { it.raw })
         .system(MessageCreateParams.System.ofTextBlockParams(system.blocks))
-    if (temperature != null) builder.temperature(temperature)
-    if (tools != null) builder.tools(tools.map { ToolUnion.ofTool(it.raw) })
+        .applyStreamOptions(temperature, tools, thinking, topK, topP, stopSequences)
     try {
         messages().createStreaming(builder.build()).use { stream ->
             val iter = stream.stream().iterator()

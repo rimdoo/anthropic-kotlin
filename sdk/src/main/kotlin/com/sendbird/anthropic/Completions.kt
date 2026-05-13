@@ -1,5 +1,6 @@
 @file:JvmName("AnthropicKt")
 @file:JvmMultifileClass
+@file:Suppress("DEPRECATION")
 
 package com.sendbird.anthropic
 

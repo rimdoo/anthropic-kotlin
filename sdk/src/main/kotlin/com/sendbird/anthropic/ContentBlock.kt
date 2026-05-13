@@ -4,6 +4,7 @@ import com.anthropic.core.JsonValue
 import com.anthropic.models.messages.ContentBlockParam
 import com.anthropic.models.messages.ImageBlockParam
 import com.anthropic.models.messages.TextBlockParam
+import com.anthropic.models.messages.ThinkingBlockParam
 import com.anthropic.models.messages.ToolUseBlockParam
 import com.anthropic.models.messages.UrlImageSource
 import com.anthropic.models.messages.ContentBlock as RawContentBlock
@@ -15,6 +16,12 @@ sealed class ContentBlock {
         val id: String,
         val name: String,
         val input: Map<String, Any?>,
+    ) : ContentBlock()
+
+    /** Extended-thinking trace from the model. `signature` is opaque, used for verification. */
+    data class Thinking(
+        val thinking: String,
+        val signature: String,
     ) : ContentBlock()
 
     /** Request-side image block (URL or base64). Claude does not return Image in responses. */
@@ -30,7 +37,7 @@ sealed class ContentBlock {
         }
     }
 
-    /** Escape hatch for response blocks we haven't modeled yet (Thinking, ServerToolUse, etc.). */
+    /** Escape hatch for response blocks we haven't modeled yet (ServerToolUse, code-exec, etc.). */
     class Other internal constructor(
         internal val raw: RawContentBlock,
     ) : ContentBlock()
@@ -46,6 +53,10 @@ internal fun RawContentBlock.toKotlin(): ContentBlock = when {
             name = tu.name(),
             input = tu._input().convert(Map::class.java) as? Map<String, Any?> ?: emptyMap(),
         )
+    }
+    isThinking() -> {
+        val tb = asThinking()
+        ContentBlock.Thinking(thinking = tb.thinking(), signature = tb.signature())
     }
     else -> ContentBlock.Other(this)
 }
@@ -68,6 +79,9 @@ internal fun ContentBlock.toParam(): ContentBlockParam = when (this) {
     }
     is ContentBlock.Image -> ContentBlockParam.ofImage(
         ImageBlockParam.builder().source(source).build()
+    )
+    is ContentBlock.Thinking -> ContentBlockParam.ofThinking(
+        ThinkingBlockParam.builder().thinking(thinking).signature(signature).build()
     )
     is ContentBlock.Other -> raw.toParam()
 }
