@@ -4,6 +4,7 @@
 package com.sendbird.anthropic
 
 import com.anthropic.client.AnthropicClient
+import com.anthropic.errors.AnthropicException as RawAnthropicException
 import com.anthropic.models.messages.MessageCreateParams
 import com.anthropic.models.messages.ToolUnion
 import kotlinx.coroutines.Dispatchers
@@ -26,11 +27,15 @@ fun AnthropicClient.streamMessage(
     if (system != null) builder.system(system)
     if (temperature != null) builder.temperature(temperature)
     if (tools != null) builder.tools(tools.map { ToolUnion.ofTool(it.raw) })
-    messages().createStreaming(builder.build()).use { stream ->
-        val iter = stream.stream().iterator()
-        while (iter.hasNext()) {
-            emit(iter.next().toKotlin())
+    try {
+        messages().createStreaming(builder.build()).use { stream ->
+            val iter = stream.stream().iterator()
+            while (iter.hasNext()) {
+                emit(iter.next().toKotlin())
+            }
         }
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
     }
 }.flowOn(Dispatchers.IO)
 
@@ -49,10 +54,14 @@ fun AnthropicClient.streamMessage(
         .system(MessageCreateParams.System.ofTextBlockParams(system.blocks))
     if (temperature != null) builder.temperature(temperature)
     if (tools != null) builder.tools(tools.map { ToolUnion.ofTool(it.raw) })
-    messages().createStreaming(builder.build()).use { stream ->
-        val iter = stream.stream().iterator()
-        while (iter.hasNext()) {
-            emit(iter.next().toKotlin())
+    try {
+        messages().createStreaming(builder.build()).use { stream ->
+            val iter = stream.stream().iterator()
+            while (iter.hasNext()) {
+                emit(iter.next().toKotlin())
+            }
         }
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
     }
 }.flowOn(Dispatchers.IO)

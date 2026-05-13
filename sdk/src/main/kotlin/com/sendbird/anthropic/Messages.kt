@@ -4,6 +4,7 @@
 package com.sendbird.anthropic
 
 import com.anthropic.client.AnthropicClient
+import com.anthropic.errors.AnthropicException as RawAnthropicException
 import com.anthropic.models.messages.MessageCreateParams
 import com.anthropic.models.messages.ToolUnion
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +25,11 @@ suspend fun AnthropicClient.createMessage(
     if (system != null) builder.system(system)
     if (temperature != null) builder.temperature(temperature)
     if (tools != null) builder.tools(tools.map { ToolUnion.ofTool(it.raw) })
-    MessageResponse(messages().create(builder.build()))
+    try {
+        MessageResponse(messages().create(builder.build()))
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
 }
 
 suspend fun AnthropicClient.createMessage(
@@ -42,5 +47,9 @@ suspend fun AnthropicClient.createMessage(
         .system(MessageCreateParams.System.ofTextBlockParams(system.blocks))
     if (temperature != null) builder.temperature(temperature)
     if (tools != null) builder.tools(tools.map { ToolUnion.ofTool(it.raw) })
-    MessageResponse(messages().create(builder.build()))
+    try {
+        MessageResponse(messages().create(builder.build()))
+    } catch (e: RawAnthropicException) {
+        throw e.toAnthropicException()
+    }
 }
