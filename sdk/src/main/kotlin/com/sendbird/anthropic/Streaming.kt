@@ -6,20 +6,27 @@ package com.sendbird.anthropic
 import com.anthropic.client.AnthropicClient
 import com.anthropic.models.messages.MessageCreateParams
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 
-suspend fun AnthropicClient.createMessage(
+fun AnthropicClient.streamMessage(
     model: Model,
     maxTokens: Int,
     messages: List<Message>,
     system: String? = null,
     temperature: Double? = null,
-): MessageResponse = withContext(Dispatchers.IO) {
+): Flow<MessageStreamEvent> = flow {
     val builder = MessageCreateParams.builder()
         .model(model)
         .maxTokens(maxTokens.toLong())
         .messages(messages.map { it.raw })
     if (system != null) builder.system(system)
     if (temperature != null) builder.temperature(temperature)
-    MessageResponse(messages().create(builder.build()))
-}
+    messages().createStreaming(builder.build()).use { stream ->
+        val iter = stream.stream().iterator()
+        while (iter.hasNext()) {
+            emit(iter.next().toKotlin())
+        }
+    }
+}.flowOn(Dispatchers.IO)
