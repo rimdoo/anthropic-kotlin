@@ -15,6 +15,13 @@ data class Message internal constructor(
                 .build()
         )
 
+        fun user(vararg blocks: ContentBlock): Message = Message(
+            MessageParam.builder()
+                .role(MessageParam.Role.USER)
+                .contentOfBlockParams(blocks.map { it.toParam() })
+                .build()
+        )
+
         fun assistant(text: String): Message = Message(
             MessageParam.builder()
                 .role(MessageParam.Role.ASSISTANT)
