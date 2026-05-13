@@ -7,6 +7,7 @@ class MessageResponse internal constructor(
 ) {
     val id: String get() = raw.id()
     val content: List<ContentBlock> by lazy { raw.content().map { it.toKotlin() } }
+    val usage: Usage by lazy { Usage(raw.usage()) }
 }
 
 val MessageResponse.text: String

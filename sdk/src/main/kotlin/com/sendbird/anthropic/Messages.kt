@@ -26,3 +26,21 @@ suspend fun AnthropicClient.createMessage(
     if (tools != null) builder.tools(tools.map { ToolUnion.ofTool(it.raw) })
     MessageResponse(messages().create(builder.build()))
 }
+
+suspend fun AnthropicClient.createMessage(
+    model: Model,
+    maxTokens: Int,
+    messages: List<Message>,
+    system: SystemPrompt,
+    temperature: Double? = null,
+    tools: List<Tool>? = null,
+): MessageResponse = withContext(Dispatchers.IO) {
+    val builder = MessageCreateParams.builder()
+        .model(model)
+        .maxTokens(maxTokens.toLong())
+        .messages(messages.map { it.raw })
+        .system(MessageCreateParams.System.ofTextBlockParams(system.blocks))
+    if (temperature != null) builder.temperature(temperature)
+    if (tools != null) builder.tools(tools.map { ToolUnion.ofTool(it.raw) })
+    MessageResponse(messages().create(builder.build()))
+}
