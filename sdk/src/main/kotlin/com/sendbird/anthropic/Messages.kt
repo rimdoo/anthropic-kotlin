@@ -5,6 +5,7 @@ package com.sendbird.anthropic
 
 import com.anthropic.client.AnthropicClient
 import com.anthropic.models.messages.MessageCreateParams
+import com.anthropic.models.messages.ToolUnion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -14,6 +15,7 @@ suspend fun AnthropicClient.createMessage(
     messages: List<Message>,
     system: String? = null,
     temperature: Double? = null,
+    tools: List<Tool>? = null,
 ): MessageResponse = withContext(Dispatchers.IO) {
     val builder = MessageCreateParams.builder()
         .model(model)
@@ -21,5 +23,6 @@ suspend fun AnthropicClient.createMessage(
         .messages(messages.map { it.raw })
     if (system != null) builder.system(system)
     if (temperature != null) builder.temperature(temperature)
+    if (tools != null) builder.tools(tools.map { ToolUnion.ofTool(it.raw) })
     MessageResponse(messages().create(builder.build()))
 }

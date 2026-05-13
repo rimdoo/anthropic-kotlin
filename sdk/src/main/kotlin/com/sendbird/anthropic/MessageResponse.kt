@@ -6,11 +6,8 @@ class MessageResponse internal constructor(
     internal val raw: RawMessage,
 ) {
     val id: String get() = raw.id()
+    val content: List<ContentBlock> by lazy { raw.content().map { it.toKotlin() } }
 }
 
 val MessageResponse.text: String
-    get() = raw.content()
-        .firstOrNull { it.isText() }
-        ?.asText()
-        ?.text()
-        ?: ""
+    get() = content.filterIsInstance<ContentBlock.Text>().firstOrNull()?.text ?: ""
