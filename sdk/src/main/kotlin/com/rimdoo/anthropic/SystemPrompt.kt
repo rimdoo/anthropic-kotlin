@@ -1,4 +1,4 @@
-package com.sendbird.anthropic
+package com.rimdoo.anthropic
 
 import com.anthropic.models.messages.CacheControlEphemeral
 import com.anthropic.models.messages.TextBlockParam

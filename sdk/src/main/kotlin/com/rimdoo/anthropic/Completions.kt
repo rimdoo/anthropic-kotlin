@@ -2,7 +2,7 @@
 @file:JvmMultifileClass
 @file:Suppress("DEPRECATION")
 
-package com.sendbird.anthropic
+package com.rimdoo.anthropic
 
 import com.anthropic.client.AnthropicClient
 import com.anthropic.errors.AnthropicException as RawAnthropicException

@@ -2,6 +2,9 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
 }
 
+group = "com.rimdoo"
+version = libs.versions.anthropic.get()
+
 repositories {
     mavenCentral()
 }

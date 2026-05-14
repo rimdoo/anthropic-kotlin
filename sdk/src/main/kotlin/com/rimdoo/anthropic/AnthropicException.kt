@@ -1,4 +1,4 @@
-package com.sendbird.anthropic
+package com.rimdoo.anthropic
 
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds

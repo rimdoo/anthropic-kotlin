@@ -1,4 +1,4 @@
-package com.sendbird.anthropic
+package com.rimdoo.anthropic
 
 import com.anthropic.models.messages.ThinkingConfigDisabled
 import com.anthropic.models.messages.ThinkingConfigEnabled

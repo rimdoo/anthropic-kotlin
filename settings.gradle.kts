@@ -1,3 +1,3 @@
-rootProject.name = "sendbird-anthropic-kotlin"
+rootProject.name = "anthropic-kotlin"
 
 include(":sdk", ":golden-runner")

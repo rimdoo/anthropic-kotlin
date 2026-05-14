@@ -1,7 +1,7 @@
 @file:JvmName("AnthropicKt")
 @file:JvmMultifileClass
 
-package com.sendbird.anthropic
+package com.rimdoo.anthropic
 
 import com.anthropic.client.AnthropicClient
 import com.anthropic.errors.AnthropicException as RawAnthropicException

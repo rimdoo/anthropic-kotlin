@@ -2,18 +2,16 @@
 @file:JvmMultifileClass
 @file:Suppress("DEPRECATION")
 
-package com.sendbird.anthropic
+package com.rimdoo.anthropic
 
 import com.anthropic.client.AnthropicClient
 import com.anthropic.errors.AnthropicException as RawAnthropicException
 import com.anthropic.models.messages.MessageCreateParams
 import com.anthropic.models.messages.ToolUnion
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 
-private fun MessageCreateParams.Builder.applyStreamOptions(
+private fun MessageCreateParams.Builder.applyCommonOptions(
     temperature: Double?,
     tools: List<Tool>?,
     toolChoice: ToolChoice?,
@@ -31,7 +29,7 @@ private fun MessageCreateParams.Builder.applyStreamOptions(
     if (stopSequences != null) stopSequences(stopSequences)
 }
 
-fun AnthropicClient.streamMessage(
+suspend fun AnthropicClient.createMessage(
     model: Model,
     maxTokens: Int,
     messages: List<Message>,
@@ -43,26 +41,21 @@ fun AnthropicClient.streamMessage(
     topK: Int? = null,
     topP: Double? = null,
     stopSequences: List<String>? = null,
-): Flow<MessageStreamEvent> = flow {
+): MessageResponse = withContext(Dispatchers.IO) {
     val builder = MessageCreateParams.builder()
         .model(model)
         .maxTokens(maxTokens.toLong())
         .messages(messages.map { it.raw })
-        .applyStreamOptions(temperature, tools, toolChoice, thinking, topK, topP, stopSequences)
+        .applyCommonOptions(temperature, tools, toolChoice, thinking, topK, topP, stopSequences)
     if (system != null) builder.system(system)
     try {
-        messages().createStreaming(builder.build()).use { stream ->
-            val iter = stream.stream().iterator()
-            while (iter.hasNext()) {
-                emit(iter.next().toKotlin())
-            }
-        }
+        MessageResponse(messages().create(builder.build()))
     } catch (e: RawAnthropicException) {
         throw e.toAnthropicException()
     }
-}.flowOn(Dispatchers.IO)
+}
 
-fun AnthropicClient.streamMessage(
+suspend fun AnthropicClient.createMessage(
     model: Model,
     maxTokens: Int,
     messages: List<Message>,
@@ -74,21 +67,16 @@ fun AnthropicClient.streamMessage(
     topK: Int? = null,
     topP: Double? = null,
     stopSequences: List<String>? = null,
-): Flow<MessageStreamEvent> = flow {
+): MessageResponse = withContext(Dispatchers.IO) {
     val builder = MessageCreateParams.builder()
         .model(model)
         .maxTokens(maxTokens.toLong())
         .messages(messages.map { it.raw })
         .system(MessageCreateParams.System.ofTextBlockParams(system.blocks))
-        .applyStreamOptions(temperature, tools, toolChoice, thinking, topK, topP, stopSequences)
+        .applyCommonOptions(temperature, tools, toolChoice, thinking, topK, topP, stopSequences)
     try {
-        messages().createStreaming(builder.build()).use { stream ->
-            val iter = stream.stream().iterator()
-            while (iter.hasNext()) {
-                emit(iter.next().toKotlin())
-            }
-        }
+        MessageResponse(messages().create(builder.build()))
     } catch (e: RawAnthropicException) {
         throw e.toAnthropicException()
     }
-}.flowOn(Dispatchers.IO)
+}
