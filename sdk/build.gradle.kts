@@ -19,4 +19,11 @@ kotlin {
 dependencies {
     api(libs.anthropic.java)
     implementation(libs.kotlinx.coroutines.core)
+
+    testImplementation(kotlin("test"))
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:${libs.versions.coroutines.get()}")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

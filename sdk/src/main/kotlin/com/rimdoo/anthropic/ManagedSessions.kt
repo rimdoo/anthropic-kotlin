@@ -367,6 +367,59 @@ internal fun OutcomeRubric.toRaw(): com.anthropic.models.beta.sessions.events.Be
     )
 }
 
+/**
+ * Build the Java SDK union variant for a single [UserEvent]. Extracted so unit tests can
+ * round-trip every variant through `.build()` and catch missing discriminator-type fields
+ * without going to the network.
+ */
+internal fun UserEvent.toRaw(): com.anthropic.models.beta.sessions.events.BetaManagedAgentsEventParams {
+    fun textBlock(text: String) =
+        com.anthropic.models.beta.sessions.events.BetaManagedAgentsTextBlock.builder()
+            .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsTextBlock.Type.TEXT)
+            .text(text)
+            .build()
+
+    return when (this) {
+        is UserEvent.Message -> com.anthropic.models.beta.sessions.events.BetaManagedAgentsEventParams.ofUserMessage(
+            com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserMessageEventParams.builder()
+                .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserMessageEventParams.Type.USER_MESSAGE)
+                .addContent(textBlock(text))
+                .build()
+        )
+        is UserEvent.Interrupt -> com.anthropic.models.beta.sessions.events.BetaManagedAgentsEventParams.ofUserInterrupt(
+            com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserInterruptEventParams.builder()
+                .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserInterruptEventParams.Type.USER_INTERRUPT)
+                .build()
+        )
+        is UserEvent.CustomToolResult -> com.anthropic.models.beta.sessions.events.BetaManagedAgentsEventParams.ofUserCustomToolResult(
+            com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserCustomToolResultEventParams.builder()
+                .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserCustomToolResultEventParams.Type.USER_CUSTOM_TOOL_RESULT)
+                .customToolUseId(customToolUseId)
+                .addContent(
+                    com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserCustomToolResultEventParams.Content.ofText(textBlock(text))
+                )
+                .build()
+        )
+        is UserEvent.ToolConfirmation -> com.anthropic.models.beta.sessions.events.BetaManagedAgentsEventParams.ofUserToolConfirmation(
+            com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserToolConfirmationEventParams.builder()
+                .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserToolConfirmationEventParams.Type.USER_TOOL_CONFIRMATION)
+                .toolUseId(toolUseId)
+                .result(
+                    if (approve) com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserToolConfirmationEventParams.Result.ALLOW
+                    else com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserToolConfirmationEventParams.Result.DENY
+                )
+                .build()
+        )
+        is UserEvent.DefineOutcome -> com.anthropic.models.beta.sessions.events.BetaManagedAgentsEventParams.ofUserDefineOutcome(
+            com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserDefineOutcomeEventParams.builder()
+                .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserDefineOutcomeEventParams.Type.USER_DEFINE_OUTCOME)
+                .description(description)
+                .rubric(rubric.toRaw())
+                .build()
+        )
+    }
+}
+
 suspend fun AnthropicClient.sendSessionEvents(
     sessionId: String,
     events: List<UserEvent>,
@@ -375,55 +428,7 @@ suspend fun AnthropicClient.sendSessionEvents(
         val builder = com.anthropic.models.beta.sessions.events.EventSendParams.builder()
             .sessionId(sessionId)
             .addBeta(MANAGED_AGENTS)
-        events.forEach { ev ->
-            when (ev) {
-                is UserEvent.Message -> builder.addEvent(
-                    com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserMessageEventParams.builder()
-                        .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserMessageEventParams.Type.USER_MESSAGE)
-                        .addContent(
-                            com.anthropic.models.beta.sessions.events.BetaManagedAgentsTextBlock.builder()
-                                .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsTextBlock.Type.TEXT)
-                                .text(ev.text).build()
-                        )
-                        .build()
-                )
-                is UserEvent.Interrupt -> builder.addEvent(
-                    com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserInterruptEventParams.builder()
-                        .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserInterruptEventParams.Type.USER_INTERRUPT)
-                        .build()
-                )
-                is UserEvent.CustomToolResult -> builder.addEvent(
-                    com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserCustomToolResultEventParams.builder()
-                        .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserCustomToolResultEventParams.Type.USER_CUSTOM_TOOL_RESULT)
-                        .customToolUseId(ev.customToolUseId)
-                        .addContent(
-                            com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserCustomToolResultEventParams.Content.ofText(
-                                com.anthropic.models.beta.sessions.events.BetaManagedAgentsTextBlock.builder()
-                                    .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsTextBlock.Type.TEXT)
-                                    .text(ev.text).build()
-                            )
-                        )
-                        .build()
-                )
-                is UserEvent.ToolConfirmation -> builder.addEvent(
-                    com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserToolConfirmationEventParams.builder()
-                        .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserToolConfirmationEventParams.Type.USER_TOOL_CONFIRMATION)
-                        .toolUseId(ev.toolUseId)
-                        .result(
-                            if (ev.approve) com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserToolConfirmationEventParams.Result.ALLOW
-                            else com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserToolConfirmationEventParams.Result.DENY
-                        )
-                        .build()
-                )
-                is UserEvent.DefineOutcome -> builder.addEvent(
-                    com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserDefineOutcomeEventParams.builder()
-                        .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserDefineOutcomeEventParams.Type.USER_DEFINE_OUTCOME)
-                        .description(ev.description)
-                        .rubric(ev.rubric.toRaw())
-                        .build()
-                )
-            }
-        }
+        events.forEach { builder.addEvent(it.toRaw()) }
         beta().sessions().events().send(builder.build())
         Unit
     } catch (e: RawAnthropicException) {
