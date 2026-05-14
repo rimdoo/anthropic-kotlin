@@ -27,3 +27,6 @@ golden-runner/
 docs/plans/
 docs/evaluation/
 CLAUDE.md
+
+# Maintainer-only publishing setup
+local/
