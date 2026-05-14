@@ -16,13 +16,9 @@ import kotlinx.coroutines.runBlocking
  *   ANTHROPIC_API_KEY=sk-... ./gradlew :sample:runStreaming
  */
 fun main(args: Array<String>): Unit = runBlocking {
-    val apiKey = System.getenv("ANTHROPIC_API_KEY")
-        ?: error("Set ANTHROPIC_API_KEY environment variable.")
     val prompt = args.firstOrNull() ?: "Write a short haiku about Kotlin."
 
-    val client = AnthropicOkHttpClient.builder()
-        .apiKey(apiKey)
-        .build()
+    val client = AnthropicOkHttpClient.fromEnv()
 
     client.streamMessage(
         model = Model.CLAUDE_OPUS_4_7,

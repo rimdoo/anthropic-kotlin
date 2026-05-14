@@ -31,14 +31,14 @@ class Session internal constructor(
 
 suspend fun AnthropicClient.createSession(
     agentId: String,
-    environmentId: String? = null,
+    environmentId: String,
     title: String? = null,
 ): Session = withContext(Dispatchers.IO) {
     try {
         val builder = SessionCreateParams.builder()
             .addBeta(MANAGED_AGENTS)
             .agent(agentId)
-        if (environmentId != null) builder.environmentId(environmentId)
+            .environmentId(environmentId)
         if (title != null) builder.title(title)
         Session(beta().sessions().create(builder.build()))
     } catch (e: RawAnthropicException) {

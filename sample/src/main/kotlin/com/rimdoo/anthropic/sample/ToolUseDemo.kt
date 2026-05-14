@@ -18,12 +18,7 @@ import kotlinx.coroutines.runBlocking
  *   ANTHROPIC_API_KEY=sk-... ./gradlew :sample:runToolUse
  */
 fun main(): Unit = runBlocking {
-    val apiKey = System.getenv("ANTHROPIC_API_KEY")
-        ?: error("Set ANTHROPIC_API_KEY environment variable.")
-
-    val client = AnthropicOkHttpClient.builder()
-        .apiKey(apiKey)
-        .build()
+    val client = AnthropicOkHttpClient.fromEnv()
 
     val weather = Tool(
         name = "get_weather",

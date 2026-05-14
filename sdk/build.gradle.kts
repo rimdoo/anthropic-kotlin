@@ -22,6 +22,7 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:${libs.versions.coroutines.get()}")
+    testImplementation("io.mockk:mockk:1.13.13")
 }
 
 tasks.test {
