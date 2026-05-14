@@ -1,3 +1,3 @@
 rootProject.name = "anthropic-kotlin"
 
-include(":sdk", ":golden-runner")
+include(":sdk", ":golden-runner", ":sample")
