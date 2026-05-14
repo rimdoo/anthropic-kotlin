@@ -355,11 +355,13 @@ sealed class OutcomeRubric {
 internal fun OutcomeRubric.toRaw(): com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserDefineOutcomeEventParams.Rubric = when (this) {
     is OutcomeRubric.Text -> com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserDefineOutcomeEventParams.Rubric.ofText(
         com.anthropic.models.beta.sessions.events.BetaManagedAgentsTextRubricParams.builder()
+            .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsTextRubricParams.Type.TEXT)
             .content(content)
             .build()
     )
     is OutcomeRubric.File -> com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserDefineOutcomeEventParams.Rubric.ofFile(
         com.anthropic.models.beta.sessions.events.BetaManagedAgentsFileRubricParams.builder()
+            .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsFileRubricParams.Type.FILE)
             .fileId(fileId)
             .build()
     )
@@ -377,21 +379,27 @@ suspend fun AnthropicClient.sendSessionEvents(
             when (ev) {
                 is UserEvent.Message -> builder.addEvent(
                     com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserMessageEventParams.builder()
+                        .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserMessageEventParams.Type.USER_MESSAGE)
                         .addContent(
                             com.anthropic.models.beta.sessions.events.BetaManagedAgentsTextBlock.builder()
+                                .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsTextBlock.Type.TEXT)
                                 .text(ev.text).build()
                         )
                         .build()
                 )
                 is UserEvent.Interrupt -> builder.addEvent(
-                    com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserInterruptEventParams.builder().build()
+                    com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserInterruptEventParams.builder()
+                        .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserInterruptEventParams.Type.USER_INTERRUPT)
+                        .build()
                 )
                 is UserEvent.CustomToolResult -> builder.addEvent(
                     com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserCustomToolResultEventParams.builder()
+                        .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserCustomToolResultEventParams.Type.USER_CUSTOM_TOOL_RESULT)
                         .customToolUseId(ev.customToolUseId)
                         .addContent(
                             com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserCustomToolResultEventParams.Content.ofText(
                                 com.anthropic.models.beta.sessions.events.BetaManagedAgentsTextBlock.builder()
+                                    .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsTextBlock.Type.TEXT)
                                     .text(ev.text).build()
                             )
                         )
@@ -399,6 +407,7 @@ suspend fun AnthropicClient.sendSessionEvents(
                 )
                 is UserEvent.ToolConfirmation -> builder.addEvent(
                     com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserToolConfirmationEventParams.builder()
+                        .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserToolConfirmationEventParams.Type.USER_TOOL_CONFIRMATION)
                         .toolUseId(ev.toolUseId)
                         .result(
                             if (ev.approve) com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserToolConfirmationEventParams.Result.ALLOW
@@ -408,6 +417,7 @@ suspend fun AnthropicClient.sendSessionEvents(
                 )
                 is UserEvent.DefineOutcome -> builder.addEvent(
                     com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserDefineOutcomeEventParams.builder()
+                        .type(com.anthropic.models.beta.sessions.events.BetaManagedAgentsUserDefineOutcomeEventParams.Type.USER_DEFINE_OUTCOME)
                         .description(ev.description)
                         .rubric(ev.rubric.toRaw())
                         .build()

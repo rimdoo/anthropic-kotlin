@@ -188,12 +188,14 @@ sealed class CredentialAuth {
 internal fun CredentialAuth.toRaw(): com.anthropic.models.beta.vaults.credentials.CredentialCreateParams.Auth = when (this) {
     is CredentialAuth.McpOAuth -> com.anthropic.models.beta.vaults.credentials.CredentialCreateParams.Auth.ofMcpOAuth(
         com.anthropic.models.beta.vaults.credentials.BetaManagedAgentsMcpOAuthCreateParams.builder()
+            .type(com.anthropic.models.beta.vaults.credentials.BetaManagedAgentsMcpOAuthCreateParams.Type.MCP_OAUTH)
             .accessToken(accessToken)
             .mcpServerUrl(mcpServerUrl)
             .build()
     )
     is CredentialAuth.StaticBearer -> com.anthropic.models.beta.vaults.credentials.CredentialCreateParams.Auth.ofStaticBearer(
         com.anthropic.models.beta.vaults.credentials.BetaManagedAgentsStaticBearerCreateParams.builder()
+            .type(com.anthropic.models.beta.vaults.credentials.BetaManagedAgentsStaticBearerCreateParams.Type.STATIC_BEARER)
             .token(token)
             .mcpServerUrl(mcpServerUrl)
             .build()

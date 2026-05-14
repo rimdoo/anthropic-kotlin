@@ -58,7 +58,9 @@ sealed class AgentTool {
 
 internal fun AgentTool.toRaw(): com.anthropic.models.beta.agents.AgentCreateParams.Tool = when (this) {
     is AgentTool.Toolset20260401 -> com.anthropic.models.beta.agents.AgentCreateParams.Tool.ofAgentToolset20260401(
-        com.anthropic.models.beta.agents.BetaManagedAgentsAgentToolset20260401Params.builder().build()
+        com.anthropic.models.beta.agents.BetaManagedAgentsAgentToolset20260401Params.builder()
+            .type(com.anthropic.models.beta.agents.BetaManagedAgentsAgentToolset20260401Params.Type.AGENT_TOOLSET_20260401)
+            .build()
     )
     is AgentTool.Other -> raw
 }
