@@ -22,6 +22,13 @@ import kotlinx.coroutines.withContext
 
 private val MANAGED_AGENTS_BETA = AnthropicBeta.MANAGED_AGENTS_2026_04_01
 
+/**
+ * Bypass to the Java SDK's `BetaManagedAgentsModel` so callers get typed constants like
+ * `AgentModel.CLAUDE_OPUS_4_7` (and `AgentModel.of("custom-model-id")` as the escape hatch),
+ * mirroring how [Model] aliases the regular Messages-API model.
+ */
+typealias AgentModel = BetaManagedAgentsModel
+
 class Agent internal constructor(
     internal val raw: BetaManagedAgentsAgent,
 ) {
@@ -58,7 +65,7 @@ internal fun AgentTool.toRaw(): com.anthropic.models.beta.agents.AgentCreatePara
 
 suspend fun AnthropicClient.createAgent(
     name: String,
-    model: String,
+    model: AgentModel,
     description: String? = null,
     system: String? = null,
     tools: List<AgentTool>? = null,
@@ -67,7 +74,7 @@ suspend fun AnthropicClient.createAgent(
         val builder = AgentCreateParams.builder()
             .addBeta(MANAGED_AGENTS_BETA)
             .name(name)
-            .model(BetaManagedAgentsModel.of(model))
+            .model(model)
         if (description != null) builder.description(description)
         if (system != null) builder.system(system)
         if (tools != null) builder.tools(tools.map { it.toRaw() })

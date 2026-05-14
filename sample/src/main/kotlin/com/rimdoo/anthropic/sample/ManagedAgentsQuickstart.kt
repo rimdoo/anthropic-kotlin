@@ -1,6 +1,7 @@
 package com.rimdoo.anthropic.sample
 
 import com.anthropic.client.okhttp.AnthropicOkHttpClient
+import com.rimdoo.anthropic.AgentModel
 import com.rimdoo.anthropic.AgentTool
 import com.rimdoo.anthropic.NetworkPolicy
 import com.rimdoo.anthropic.SessionStreamEvent
@@ -29,7 +30,7 @@ fun main(): Unit = runBlocking {
     // 1. Create an agent — model, system prompt, tool access.
     val agent = client.createAgent(
         name = "Coding Assistant",
-        model = "claude-opus-4-7",
+        model = AgentModel.CLAUDE_OPUS_4_7,
         system = "You are a helpful coding assistant. Write clean, well-documented code.",
         tools = listOf(AgentTool.Toolset20260401),
     )
