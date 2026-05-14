@@ -30,3 +30,13 @@ CLAUDE.md
 
 # Maintainer-only publishing setup
 local/
+
+# Secrets — never commit
+*.asc
+*.gpg
+*.pem
+*.p12
+secret-*
+*-secret
+*.key
+gradle.properties.local
