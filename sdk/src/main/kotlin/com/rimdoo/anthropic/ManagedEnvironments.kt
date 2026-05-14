@@ -31,11 +31,31 @@ class Environment internal constructor(
     val archivedAt: String? get() = raw.archivedAt().orElse(null)
 }
 
-suspend fun AnthropicClient.createEnvironment(name: String): Environment = withContext(Dispatchers.IO) {
+/** Network policy for a managed-agents cloud environment. */
+sealed class NetworkPolicy {
+    /** Allow all outbound network traffic from the container. */
+    data object Unrestricted : NetworkPolicy()
+    // Limited(allowed = [...]) — add as needed.
+}
+
+internal fun NetworkPolicy.toRaw(): com.anthropic.models.beta.environments.BetaCloudConfigParams.Networking = when (this) {
+    is NetworkPolicy.Unrestricted -> com.anthropic.models.beta.environments.BetaCloudConfigParams.Networking.ofUnrestricted(
+        com.anthropic.models.beta.environments.BetaUnrestrictedNetwork.builder().build()
+    )
+}
+
+suspend fun AnthropicClient.createEnvironment(
+    name: String,
+    networking: NetworkPolicy = NetworkPolicy.Unrestricted,
+): Environment = withContext(Dispatchers.IO) {
     try {
+        val config = com.anthropic.models.beta.environments.BetaCloudConfigParams.builder()
+            .networking(networking.toRaw())
+            .build()
         val params = EnvironmentCreateParams.builder()
             .addBeta(MANAGED_AGENTS)
             .name(name)
+            .config(config)
             .build()
         Environment(beta().environments().create(params))
     } catch (e: RawAnthropicException) {

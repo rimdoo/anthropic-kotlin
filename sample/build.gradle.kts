@@ -36,3 +36,11 @@ tasks.register<JavaExec>("runToolUse") {
     mainClass.set("com.rimdoo.anthropic.sample.ToolUseDemoKt")
     standardInput = System.`in`
 }
+
+tasks.register<JavaExec>("runManagedAgents") {
+    group = "application"
+    description = "Managed Agents quickstart — create agent + env + session, stream events"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.rimdoo.anthropic.sample.ManagedAgentsQuickstartKt")
+    standardInput = System.`in`
+}

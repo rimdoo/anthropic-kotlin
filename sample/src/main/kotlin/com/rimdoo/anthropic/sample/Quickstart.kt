@@ -8,27 +8,24 @@ import com.rimdoo.anthropic.text
 import kotlinx.coroutines.runBlocking
 
 /**
- * Quickstart — single-turn chat.
+ * Get started — single-turn Messages API call.
+ *
+ * Mirrors the Kotlin/Java translation of the official quickstart at
+ * https://platform.claude.com/docs/en/get-started.
  *
  * Run with:
  *   ANTHROPIC_API_KEY=sk-... ./gradlew :sample:run
- *   # or with a custom prompt:
- *   ANTHROPIC_API_KEY=sk-... ./gradlew :sample:run --args="'who are you?'"
  */
-fun main(args: Array<String>): Unit = runBlocking {
-    val apiKey = System.getenv("ANTHROPIC_API_KEY")
-        ?: error("Set ANTHROPIC_API_KEY environment variable.")
-    val prompt = args.firstOrNull() ?: "In one sentence, what is Kotlin?"
+fun main(): Unit = runBlocking {
+    val client = AnthropicOkHttpClient.fromEnv()
 
-    val client = AnthropicOkHttpClient.builder()
-        .apiKey(apiKey)
-        .build()
-
-    val response = client.createMessage(
+    val message = client.createMessage(
         model = Model.CLAUDE_OPUS_4_7,
-        maxTokens = 1024,
-        messages = listOf(Message.user(prompt)),
+        maxTokens = 1000,
+        messages = listOf(
+            Message.user("What should I search for to find the latest developments in renewable energy?"),
+        ),
     )
 
-    println(response.text)
+    println(message.text)
 }

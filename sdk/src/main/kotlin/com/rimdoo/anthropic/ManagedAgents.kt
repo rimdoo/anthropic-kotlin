@@ -35,11 +35,33 @@ class Agent internal constructor(
     val version: Int get() = raw.version()
 }
 
+/**
+ * Tools an agent has access to. The `agent_toolset_20260401` toolset is the curated default
+ * set (bash, file ops, web search, etc.); MCP toolsets and custom tools are advanced/raw-only
+ * for now and can be added via [Other] until they're modeled here.
+ */
+sealed class AgentTool {
+    /** Enable the full bundled agent toolset (bash, write, web search, etc.). */
+    data object Toolset20260401 : AgentTool()
+    /** Escape hatch for MCP or custom tool variants — pass the raw Java SDK union. */
+    class Other internal constructor(
+        internal val raw: com.anthropic.models.beta.agents.AgentCreateParams.Tool,
+    ) : AgentTool()
+}
+
+internal fun AgentTool.toRaw(): com.anthropic.models.beta.agents.AgentCreateParams.Tool = when (this) {
+    is AgentTool.Toolset20260401 -> com.anthropic.models.beta.agents.AgentCreateParams.Tool.ofAgentToolset20260401(
+        com.anthropic.models.beta.agents.BetaManagedAgentsAgentToolset20260401Params.builder().build()
+    )
+    is AgentTool.Other -> raw
+}
+
 suspend fun AnthropicClient.createAgent(
     name: String,
     model: String,
     description: String? = null,
     system: String? = null,
+    tools: List<AgentTool>? = null,
 ): Agent = withContext(Dispatchers.IO) {
     try {
         val builder = AgentCreateParams.builder()
@@ -48,6 +70,7 @@ suspend fun AnthropicClient.createAgent(
             .model(BetaManagedAgentsModel.of(model))
         if (description != null) builder.description(description)
         if (system != null) builder.system(system)
+        if (tools != null) builder.tools(tools.map { it.toRaw() })
         Agent(beta().agents().create(builder.build()))
     } catch (e: RawAnthropicException) {
         throw e.toAnthropicException()

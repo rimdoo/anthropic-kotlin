@@ -1,26 +1,24 @@
 # sample
 
-Runnable demos exercising the SDK.
+Kotlin translations of the official Anthropic quickstarts.
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
 
-# 1. Single-turn chat (default `:sample:run` target)
+# https://platform.claude.com/docs/en/get-started
 ./gradlew :sample:run
-# with a custom prompt
-./gradlew :sample:run --args="'why is the sky blue?'"
 
-# 2. Streaming
+# https://platform.claude.com/docs/en/managed-agents/quickstart
+./gradlew :sample:runManagedAgents
+
+# Extra demos (not 1:1 with docs, but useful)
 ./gradlew :sample:runStreaming
-
-# 3. Tool use roundtrip (stubbed tool)
 ./gradlew :sample:runToolUse
 ```
 
-Each demo source file lives in `src/main/kotlin/com/rimdoo/anthropic/sample/`:
-
-| File | Demo |
-| --- | --- |
-| `Quickstart.kt` | `client.createMessage(...)` — basic suspend call |
-| `StreamingDemo.kt` | `client.streamMessage(...)` — `Flow<MessageStreamEvent>` |
-| `ToolUseDemo.kt` | tool declaration + two-round roundtrip with stubbed tool result |
+| File | Mirrors | Demonstrates |
+| --- | --- | --- |
+| `Quickstart.kt` | [get-started](https://platform.claude.com/docs/en/get-started) | `createMessage` — single-turn Messages API call |
+| `ManagedAgentsQuickstart.kt` | [managed-agents/quickstart](https://platform.claude.com/docs/en/managed-agents/quickstart) | `createAgent` (with toolset) + `createEnvironment` (cloud + unrestricted) + `createSession` + `sendSessionEvents` + `streamSessionEvents` Flow with sealed `SessionStreamEvent` |
+| `StreamingDemo.kt` | — | Plain Messages streaming via `streamMessage` Flow |
+| `ToolUseDemo.kt` | — | Two-round tool-use roundtrip with a stubbed tool |

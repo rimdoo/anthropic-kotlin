@@ -32,12 +32,14 @@ class Session internal constructor(
 suspend fun AnthropicClient.createSession(
     agentId: String,
     environmentId: String? = null,
+    title: String? = null,
 ): Session = withContext(Dispatchers.IO) {
     try {
         val builder = SessionCreateParams.builder()
             .addBeta(MANAGED_AGENTS)
             .agent(agentId)
         if (environmentId != null) builder.environmentId(environmentId)
+        if (title != null) builder.title(title)
         Session(beta().sessions().create(builder.build()))
     } catch (e: RawAnthropicException) {
         throw e.toAnthropicException()
@@ -207,9 +209,63 @@ suspend fun AnthropicClient.deleteSessionResource(
 
 // -------- Session.events.streamStreaming + Session.threads.events --------
 
-class SessionStreamEvent internal constructor(
-    internal val raw: com.anthropic.models.beta.sessions.events.BetaManagedAgentsStreamSessionEvents,
-)
+/**
+ * One event from the session-level event stream. The Java SDK exposes ~30 variants;
+ * the ones below are the most commonly handled, and anything else is wrapped in [Other]
+ * with the raw payload accessible internally.
+ */
+sealed class SessionStreamEvent {
+    /** Agent emitted assistant message text. Multiple TextBlocks are joined. */
+    data class AgentMessage(val text: String) : SessionStreamEvent()
+
+    /** Agent decided to call a built-in tool. */
+    data class AgentToolUse(val id: String, val name: String) : SessionStreamEvent()
+
+    /** Built-in tool finished executing. */
+    data class AgentToolResult(val toolUseId: String, val isError: Boolean) : SessionStreamEvent()
+
+    /** Agent emitted an extended-thinking block (text is opaque — server-controlled). */
+    class AgentThinking internal constructor(
+        internal val raw: com.anthropic.models.beta.sessions.events.BetaManagedAgentsAgentThinkingEvent,
+    ) : SessionStreamEvent()
+
+    data object SessionStatusRunning : SessionStreamEvent()
+    data object SessionStatusIdle : SessionStreamEvent()
+    data object SessionStatusTerminated : SessionStreamEvent()
+
+    /** Session encountered an error. The raw event has the error detail. */
+    class SessionError internal constructor(
+        internal val raw: com.anthropic.models.beta.sessions.events.BetaManagedAgentsSessionErrorEvent,
+    ) : SessionStreamEvent()
+
+    /** Escape hatch for variants we haven't modeled (thread events, spans, mcp tool events, etc.). */
+    class Other internal constructor(
+        internal val raw: com.anthropic.models.beta.sessions.events.BetaManagedAgentsStreamSessionEvents,
+    ) : SessionStreamEvent()
+}
+
+internal fun com.anthropic.models.beta.sessions.events.BetaManagedAgentsStreamSessionEvents.toKotlin(): SessionStreamEvent = when {
+    isAgentMessage() -> SessionStreamEvent.AgentMessage(
+        text = asAgentMessage().content().joinToString("") { it.text() }
+    )
+    isAgentToolUse() -> {
+        val raw = asAgentToolUse()
+        SessionStreamEvent.AgentToolUse(id = raw.id(), name = raw.name())
+    }
+    isAgentToolResult() -> {
+        val raw = asAgentToolResult()
+        SessionStreamEvent.AgentToolResult(
+            toolUseId = raw.toolUseId(),
+            isError = raw.isError().orElse(false),
+        )
+    }
+    isAgentThinking() -> SessionStreamEvent.AgentThinking(asAgentThinking())
+    isSessionStatusRunning() -> SessionStreamEvent.SessionStatusRunning
+    isSessionStatusIdle() -> SessionStreamEvent.SessionStatusIdle
+    isSessionStatusTerminated() -> SessionStreamEvent.SessionStatusTerminated
+    isSessionError() -> SessionStreamEvent.SessionError(asSessionError())
+    else -> SessionStreamEvent.Other(this)
+}
 
 class SessionThreadStreamEvent internal constructor(
     internal val raw: com.anthropic.models.beta.sessions.threads.BetaManagedAgentsStreamSessionThreadEvents,
@@ -224,7 +280,7 @@ fun AnthropicClient.streamSessionEvents(sessionId: String): Flow<SessionStreamEv
         beta().sessions().events().streamStreaming(params).use { stream ->
             val iter = stream.stream().iterator()
             while (iter.hasNext()) {
-                emit(SessionStreamEvent(iter.next()))
+                emit(iter.next().toKotlin())
             }
         }
     } catch (e: RawAnthropicException) {
