@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.flowOn
 private fun MessageCreateParams.Builder.applyStreamOptions(
     temperature: Double?,
     tools: List<Tool>?,
+    serverTools: List<ServerTool>?,
     toolChoice: ToolChoice?,
     thinking: ThinkingConfig?,
     topK: Int?,
@@ -23,7 +24,11 @@ private fun MessageCreateParams.Builder.applyStreamOptions(
     stopSequences: List<String>?,
 ): MessageCreateParams.Builder = apply {
     if (temperature != null) temperature(temperature)
-    if (tools != null) tools(tools.map { ToolUnion.ofTool(it.raw) })
+    val merged = buildList {
+        if (tools != null) tools.forEach { add(ToolUnion.ofTool(it.raw)) }
+        if (serverTools != null) serverTools.forEach { add(it.toToolUnion()) }
+    }
+    if (merged.isNotEmpty()) tools(merged)
     if (toolChoice != null) toolChoice(toolChoice.toRaw())
     if (thinking != null) thinking(thinking.toRaw())
     if (topK != null) topK(topK.toLong())
@@ -38,6 +43,7 @@ fun AnthropicClient.streamMessage(
     system: String? = null,
     temperature: Double? = null,
     tools: List<Tool>? = null,
+    serverTools: List<ServerTool>? = null,
     toolChoice: ToolChoice? = null,
     thinking: ThinkingConfig? = null,
     topK: Int? = null,
@@ -48,7 +54,7 @@ fun AnthropicClient.streamMessage(
         .model(model)
         .maxTokens(maxTokens.toLong())
         .messages(messages.map { it.raw })
-        .applyStreamOptions(temperature, tools, toolChoice, thinking, topK, topP, stopSequences)
+        .applyStreamOptions(temperature, tools, serverTools, toolChoice, thinking, topK, topP, stopSequences)
     if (system != null) builder.system(system)
     try {
         messages().createStreaming(builder.build()).use { stream ->
@@ -69,6 +75,7 @@ fun AnthropicClient.streamMessage(
     system: SystemPrompt,
     temperature: Double? = null,
     tools: List<Tool>? = null,
+    serverTools: List<ServerTool>? = null,
     toolChoice: ToolChoice? = null,
     thinking: ThinkingConfig? = null,
     topK: Int? = null,
@@ -80,7 +87,7 @@ fun AnthropicClient.streamMessage(
         .maxTokens(maxTokens.toLong())
         .messages(messages.map { it.raw })
         .system(MessageCreateParams.System.ofTextBlockParams(system.blocks))
-        .applyStreamOptions(temperature, tools, toolChoice, thinking, topK, topP, stopSequences)
+        .applyStreamOptions(temperature, tools, serverTools, toolChoice, thinking, topK, topP, stopSequences)
     try {
         messages().createStreaming(builder.build()).use { stream ->
             val iter = stream.stream().iterator()

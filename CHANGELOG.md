@@ -8,6 +8,42 @@ release.
 
 ## [Unreleased]
 
+### Added
+
+- **`ServerTool` sealed class + `serverTools` parameter on `createMessage` / `streamMessage`**
+  for Anthropic-hosted tools the server invokes on the model's behalf. Two variants:
+  `ServerTool.WebSearch(maxUses?, allowedDomains?, blockedDomains?)` and
+  `ServerTool.WebFetch(maxUses?, allowedDomains?, blockedDomains?)`. Mixes freely with
+  client-side `tools = listOf(Tool(...))`.
+- **`AgentTool.Toolset20260401Subset(enabled: Set<DefaultTool>)`** — enable only a subset
+  of the bundled `agent_toolset_20260401` (every other tool disabled via
+  `default_config.enabled = false`). `DefaultTool` enum lists the available tools
+  (`BASH`, `READ`, `GLOB`, `GREP`, `WEB_SEARCH`, `WEB_FETCH`).
+- **`AgentTool.McpToolset(serverName: String, enabled: Set<String>? = null)`** — reference
+  a previously-registered MCP server by name. `enabled = null` enables every tool the
+  server exposes; a non-empty set whitelists individual tools.
+- **`AgentTool.CustomTool(name, description, rawInputSchema)`** — client-side tools.
+  The agent emits `agent_custom_tool_use` (see `SessionStreamEvent.AgentCustomToolUse`)
+  and the caller replies via `UserEvent.CustomToolResult`. `rawInputSchema` is the raw
+  Java SDK type so callers can describe nested JSON Schema fully.
+- **`McpUrlServer(name, url)`** + `createAgent(mcpServers = ...)` parameter — register
+  remote MCP servers at agent-creation time. Authentication lives separately in a
+  vault credential targeting the same `mcpServerUrl`.
+- **`createSession(vaultIds = ...)`** — attach vault credentials to a session so the
+  agent can authenticate to MCP servers / tools that require them.
+- **`SessionStreamEvent.AgentCustomToolUse(id, name, inputJson)`** — new sealed variant
+  for client-side tool calls. Previously absorbed by `SessionStreamEvent.Other`.
+- **`Message.toolResults(...)`** — bundle multiple `tool_result` blocks into a single
+  user message. Required by the Messages API when the assistant emits more than one
+  `tool_use` in a turn.
+
+### Changed
+
+- **`AgentTool.Other` constructor is now public.** Previously `internal`, blocking the
+  documented escape-hatch use ("pass any Java SDK `AgentCreateParams.Tool` here").
+  The `raw` property remains `internal`. Callers can now build a fully-custom variant
+  with the Java SDK directly and wrap it in `AgentTool.Other(raw)`.
+
 ## [2.30.0] — 2026-05-14
 
 First public release, matching `com.anthropic:anthropic-java:2.30.0`.

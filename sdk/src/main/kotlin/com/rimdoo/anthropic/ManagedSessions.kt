@@ -33,6 +33,7 @@ suspend fun AnthropicClient.createSession(
     agentId: String,
     environmentId: String,
     title: String? = null,
+    vaultIds: List<String>? = null,
 ): Session = withContext(Dispatchers.IO) {
     try {
         val builder = SessionCreateParams.builder()
@@ -40,6 +41,7 @@ suspend fun AnthropicClient.createSession(
             .agent(agentId)
             .environmentId(environmentId)
         if (title != null) builder.title(title)
+        if (vaultIds != null) builder.vaultIds(vaultIds)
         Session(beta().sessions().create(builder.build()))
     } catch (e: RawAnthropicException) {
         throw e.toAnthropicException()
@@ -224,13 +226,32 @@ sealed class SessionStreamEvent {
     /** Built-in tool finished executing. */
     data class AgentToolResult(val toolUseId: String, val isError: Boolean) : SessionStreamEvent()
 
+    /**
+     * Agent decided to call a client-side ("custom") tool. The caller must execute it and reply
+     * with [UserEvent.CustomToolResult] (using [id] as `customToolUseId`). [inputJson] is the
+     * raw arguments JSON encoded as a String — parse with kotlinx-serialization or Jackson.
+     */
+    data class AgentCustomToolUse(
+        val id: String,
+        val name: String,
+        val inputJson: String,
+    ) : SessionStreamEvent()
+
     /** Agent emitted an extended-thinking block (text is opaque — server-controlled). */
     class AgentThinking internal constructor(
         internal val raw: com.anthropic.models.beta.sessions.events.BetaManagedAgentsAgentThinkingEvent,
     ) : SessionStreamEvent()
 
     data object SessionStatusRunning : SessionStreamEvent()
-    data object SessionStatusIdle : SessionStreamEvent()
+
+    /**
+     * Agent thread reached an idle state. Inspect [stopReason] to tell whether this is a real
+     * end-of-turn or just a pause waiting on user input (e.g. a custom tool result). The SSE
+     * connection closes after every idle event, so callers usually open a new stream to receive
+     * follow-up events once they've resolved the requires-action condition.
+     */
+    data class SessionStatusIdle(val stopReason: IdleStopReason) : SessionStreamEvent()
+
     data object SessionStatusTerminated : SessionStreamEvent()
 
     /** Session encountered an error. The raw event has the error detail. */
@@ -242,6 +263,25 @@ sealed class SessionStreamEvent {
     class Other internal constructor(
         internal val raw: com.anthropic.models.beta.sessions.events.BetaManagedAgentsStreamSessionEvents,
     ) : SessionStreamEvent()
+}
+
+/** Why a session thread went idle. See [SessionStreamEvent.SessionStatusIdle]. */
+sealed class IdleStopReason {
+    /** The agent finished its turn naturally — no further events are coming. */
+    data object EndTurn : IdleStopReason()
+
+    /**
+     * The agent is waiting on a blocking user-input event (custom tool result, tool
+     * confirmation, etc.). Once the caller sends the required [UserEvent], a new stream
+     * will receive the agent's continuation.
+     */
+    data object RequiresAction : IdleStopReason()
+
+    /** The turn ended because the retry budget was exhausted. */
+    data object RetriesExhausted : IdleStopReason()
+
+    /** Unknown / new-to-SDK stop reason. */
+    data object Unknown : IdleStopReason()
 }
 
 internal fun com.anthropic.models.beta.sessions.events.BetaManagedAgentsStreamSessionEvents.toKotlin(): SessionStreamEvent = when {
@@ -259,9 +299,26 @@ internal fun com.anthropic.models.beta.sessions.events.BetaManagedAgentsStreamSe
             isError = raw.isError().orElse(false),
         )
     }
+    isAgentCustomToolUse() -> {
+        val raw = asAgentCustomToolUse()
+        SessionStreamEvent.AgentCustomToolUse(
+            id = raw.id(),
+            name = raw.name(),
+            inputJson = raw.input().toString(),
+        )
+    }
     isAgentThinking() -> SessionStreamEvent.AgentThinking(asAgentThinking())
     isSessionStatusRunning() -> SessionStreamEvent.SessionStatusRunning
-    isSessionStatusIdle() -> SessionStreamEvent.SessionStatusIdle
+    isSessionStatusIdle() -> {
+        val raw = asSessionStatusIdle().stopReason()
+        val reason = when {
+            raw.isEndTurn() -> IdleStopReason.EndTurn
+            raw.isRequiresAction() -> IdleStopReason.RequiresAction
+            raw.isRetriesExhausted() -> IdleStopReason.RetriesExhausted
+            else -> IdleStopReason.Unknown
+        }
+        SessionStreamEvent.SessionStatusIdle(reason)
+    }
     isSessionStatusTerminated() -> SessionStreamEvent.SessionStatusTerminated
     isSessionError() -> SessionStreamEvent.SessionError(asSessionError())
     else -> SessionStreamEvent.Other(this)
