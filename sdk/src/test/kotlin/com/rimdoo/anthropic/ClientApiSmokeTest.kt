@@ -101,6 +101,40 @@ class ClientApiSmokeTest {
         )
     }
 
+    @Test fun `createMessage with serverTools`() = runTest {
+        client().createMessage(
+            model = Model.CLAUDE_OPUS_4_7,
+            maxTokens = 100,
+            messages = listOf(Message.user("hi")),
+            serverTools = listOf(
+                ServerTool.WebSearch(maxUses = 3, allowedDomains = listOf("anthropic.com")),
+                ServerTool.WebFetch(maxUses = 5),
+            ),
+        )
+    }
+
+    @Test fun `createMessage with tools and serverTools mixed`() = runTest {
+        client().createMessage(
+            model = Model.CLAUDE_OPUS_4_7,
+            maxTokens = 100,
+            messages = listOf(Message.user("hi")),
+            tools = listOf(
+                Tool(name = "w", description = "weather",
+                    inputSchema = jsonSchema { property("city", type = "string", required = true) }),
+            ),
+            serverTools = listOf(ServerTool.WebSearch()),
+        )
+    }
+
+    @Test fun `streamMessage with serverTools`() = runTest {
+        client().streamMessage(
+            model = Model.CLAUDE_OPUS_4_7,
+            maxTokens = 100,
+            messages = listOf(Message.user("hi")),
+            serverTools = listOf(ServerTool.WebSearch(maxUses = 2)),
+        ).collect()
+    }
+
     // ============================== Completions ==============================
 
     @Test fun `createCompletion`() = runTest {
@@ -174,6 +208,44 @@ class ClientApiSmokeTest {
         )
     }
 
+    @Test fun `createAgent with every AgentTool variant`() = runTest {
+        client().createAgent(
+            name = "x",
+            model = AgentModel.CLAUDE_OPUS_4_7,
+            tools = listOf(
+                AgentTool.Toolset20260401Subset(
+                    enabled = setOf(AgentTool.DefaultTool.WEB_SEARCH, AgentTool.DefaultTool.WEB_FETCH),
+                ),
+                AgentTool.McpToolset(serverName = "atlassian"),
+                AgentTool.McpToolset(serverName = "atlassian", enabled = setOf("search")),
+                AgentTool.CustomTool(
+                    name = "lookup_user",
+                    description = "Look up a user by id.",
+                    rawInputSchema = com.anthropic.models.beta.agents.BetaManagedAgentsCustomToolInputSchema.builder()
+                        .type(com.anthropic.models.beta.agents.BetaManagedAgentsCustomToolInputSchema.Type.OBJECT)
+                        .build(),
+                ),
+                AgentTool.Other(
+                    com.anthropic.models.beta.agents.AgentCreateParams.Tool.ofAgentToolset20260401(
+                        com.anthropic.models.beta.agents.BetaManagedAgentsAgentToolset20260401Params.builder()
+                            .type(com.anthropic.models.beta.agents.BetaManagedAgentsAgentToolset20260401Params.Type.AGENT_TOOLSET_20260401)
+                            .build()
+                    )
+                ),
+            ),
+        )
+    }
+
+    @Test fun `createAgent with mcpServers`() = runTest {
+        client().createAgent(
+            name = "x",
+            model = AgentModel.CLAUDE_OPUS_4_7,
+            mcpServers = listOf(
+                McpUrlServer(name = "atlassian", url = "https://mcp.atlassian.com/v1/sse"),
+            ),
+        )
+    }
+
     @Test fun `retrieveAgent`() = runTest { client().retrieveAgent("agent_x") }
     @Test fun `updateAgent`()   = runTest { client().updateAgent("agent_x", version = 1) }
     @Test fun `archiveAgent`()  = runTest { client().archiveAgent("agent_x") }
@@ -206,6 +278,14 @@ class ClientApiSmokeTest {
             agentId = "agent_x",
             environmentId = "env_x",
             title = "demo",
+        )
+    }
+
+    @Test fun `createSession with vaultIds`() = runTest {
+        client().createSession(
+            agentId = "agent_x",
+            environmentId = "env_x",
+            vaultIds = listOf("vault_x", "vault_y"),
         )
     }
 

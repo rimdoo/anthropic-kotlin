@@ -18,6 +18,75 @@ class MappersTest {
         AgentTool.Toolset20260401.toRaw()
     }
 
+    @Test fun `AgentTool Toolset20260401Subset builds for every default tool`() {
+        AgentTool.DefaultTool.values().forEach { tool ->
+            AgentTool.Toolset20260401Subset(enabled = setOf(tool)).toRaw()
+        }
+        AgentTool.Toolset20260401Subset(enabled = AgentTool.DefaultTool.values().toSet()).toRaw()
+    }
+
+    @Test fun `AgentTool Toolset20260401Subset rejects empty enabled`() {
+        kotlin.test.assertFailsWith<IllegalArgumentException> {
+            AgentTool.Toolset20260401Subset(enabled = emptySet())
+        }
+    }
+
+    @Test fun `AgentTool McpToolset builds with all tools`() {
+        AgentTool.McpToolset(serverName = "atlassian").toRaw()
+    }
+
+    @Test fun `AgentTool McpToolset builds with subset`() {
+        AgentTool.McpToolset(
+            serverName = "atlassian",
+            enabled = setOf("searchConfluenceUsingCql", "getConfluencePage"),
+        ).toRaw()
+    }
+
+    @Test fun `AgentTool McpToolset rejects empty enabled`() {
+        kotlin.test.assertFailsWith<IllegalArgumentException> {
+            AgentTool.McpToolset(serverName = "x", enabled = emptySet())
+        }
+    }
+
+    @Test fun `AgentTool CustomTool builds`() {
+        AgentTool.CustomTool(
+            name = "lookup_user",
+            description = "Look up a user by id.",
+            rawInputSchema = com.anthropic.models.beta.agents.BetaManagedAgentsCustomToolInputSchema.builder()
+                .type(com.anthropic.models.beta.agents.BetaManagedAgentsCustomToolInputSchema.Type.OBJECT)
+                .build(),
+        ).toRaw()
+    }
+
+    @Test fun `AgentTool Other accepts raw Java union from outside`() {
+        val raw = com.anthropic.models.beta.agents.AgentCreateParams.Tool.ofAgentToolset20260401(
+            com.anthropic.models.beta.agents.BetaManagedAgentsAgentToolset20260401Params.builder()
+                .type(com.anthropic.models.beta.agents.BetaManagedAgentsAgentToolset20260401Params.Type.AGENT_TOOLSET_20260401)
+                .build()
+        )
+        AgentTool.Other(raw).toRaw()
+    }
+
+    // -------- McpUrlServer --------
+    @Test fun `McpUrlServer builds`() {
+        McpUrlServer(name = "atlassian", url = "https://mcp.atlassian.com/v1/sse").toRaw()
+    }
+
+    // -------- ServerTool --------
+    @Test fun `ServerTool WebSearch builds with every combination`() {
+        ServerTool.WebSearch().toToolUnion()
+        ServerTool.WebSearch(maxUses = 3).toToolUnion()
+        ServerTool.WebSearch(allowedDomains = listOf("anthropic.com")).toToolUnion()
+        ServerTool.WebSearch(blockedDomains = listOf("evil.example")).toToolUnion()
+    }
+
+    @Test fun `ServerTool WebFetch builds with every combination`() {
+        ServerTool.WebFetch().toToolUnion()
+        ServerTool.WebFetch(maxUses = 5).toToolUnion()
+        ServerTool.WebFetch(allowedDomains = listOf("anthropic.com")).toToolUnion()
+        ServerTool.WebFetch(blockedDomains = listOf("evil.example")).toToolUnion()
+    }
+
     // -------- NetworkPolicy --------
     @Test fun `NetworkPolicy Unrestricted builds`() {
         NetworkPolicy.Unrestricted.toRaw()
